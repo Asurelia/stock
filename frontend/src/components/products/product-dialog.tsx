@@ -33,7 +33,7 @@ import {
 
 import type { Product } from "@/lib/api"
 import { api } from "@/lib/api"
-import { productSchema, ProductFormValues } from "./product-schema"
+import { productSchema, type ProductFormValues } from "./product-schema"
 
 interface ProductDialogProps {
     open: boolean
@@ -69,7 +69,7 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
     const isEditing = !!product
 
     const form = useForm<ProductFormValues>({
-        resolver: zodResolver(productSchema),
+        resolver: zodResolver(productSchema) as any,
     })
 
     // Reset form when product changes
@@ -96,7 +96,7 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
     }, [product, form, open])
 
     const mutation = useMutation({
-        mutationFn: (values: ProductFormValues) => {
+        mutationFn: async (values: ProductFormValues) => {
             if (isEditing && product) {
                 return api.products.update(product.id, values)
             } else {
@@ -132,7 +132,7 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField
-                            control={form.control}
+                            control={form.control as any}
                             name="name"
                             render={({ field }) => (
                                 <FormItem>
@@ -147,7 +147,7 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
 
                         <div className="grid grid-cols-2 gap-4">
                             <FormField
-                                control={form.control}
+                                control={form.control as any}
                                 name="category"
                                 render={({ field }) => (
                                     <FormItem>
@@ -170,7 +170,7 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
                             />
 
                             <FormField
-                                control={form.control}
+                                control={form.control as any}
                                 name="unit"
                                 render={({ field }) => (
                                     <FormItem>
@@ -195,7 +195,7 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
 
                         <div className="grid grid-cols-2 gap-4">
                             <FormField
-                                control={form.control}
+                                control={form.control as any}
                                 name="quantity"
                                 render={({ field }) => (
                                     <FormItem>
@@ -209,7 +209,7 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
                             />
 
                             <FormField
-                                control={form.control}
+                                control={form.control as any}
                                 name="minStock"
                                 render={({ field }) => (
                                     <FormItem>
@@ -224,7 +224,7 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
                         </div>
 
                         <FormField
-                            control={form.control}
+                            control={form.control as any}
                             name="price"
                             render={({ field }) => (
                                 <FormItem>
