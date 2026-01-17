@@ -5,6 +5,8 @@ import type {
     ColumnDef,
     ColumnFiltersState,
     SortingState,
+    VisibilityState, // Added
+    GroupingState, // Added
 } from "@tanstack/react-table"
 import {
     flexRender,
@@ -13,6 +15,8 @@ import {
     getPaginationRowModel,
     getSortedRowModel,
     useReactTable,
+    getExpandedRowModel, // Added
+    getGroupedRowModel, // Added
 } from "@tanstack/react-table"
 
 import {
@@ -23,7 +27,6 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
     Accordion,
