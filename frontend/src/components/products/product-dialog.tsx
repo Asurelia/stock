@@ -56,20 +56,21 @@ const CATEGORIES = [
 
 const UNITS = ["kg", "g", "L", "cL", "unité", "boite", "bouteille", "paquet"]
 
+const defaultValues: ProductFormValues = {
+    name: "",
+    category: "",
+    quantity: 0,
+    unit: "kg",
+    minStock: 0,
+    price: 0,
+}
+
 export function ProductDialog({ open, onOpenChange, product }: ProductDialogProps) {
     const queryClient = useQueryClient()
     const isEditing = !!product
 
     const form = useForm<ProductFormValues>({
         resolver: zodResolver(productSchema),
-        defaultValues: {
-            name: "",
-            category: "",
-            quantity: 0,
-            unit: "kg",
-            minStock: 0,
-            price: 0,
-        },
     })
 
     // Reset form when product changes
