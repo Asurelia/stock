@@ -1,0 +1,87 @@
+{
+  "project": "StockPro Clinique",
+  "description": "Application de gestion des stocks pour une clinique - Migration React + Supabase",
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Schéma Base de Données Supabase",
+      "description": "Créer toutes les tables nécessaires dans Supabase avec les relations et RLS policies",
+      "status": "in_progress",
+      "priority": "critical",
+      "tables": ["products", "outputs", "deliveries", "delivery_items", "suppliers", "recipes", "recipe_ingredients", "clinic_menus", "photos", "forecasts"]
+    },
+    {
+      "id": "US-002",
+      "title": "Module Outputs (Sorties Stock)",
+      "description": "Page complète pour gérer les sorties de stock avec historique et filtres",
+      "status": "pending",
+      "priority": "high",
+      "features": ["CRUD sorties", "Filtres date", "Motifs prédéfinis", "Mise à jour auto stock"]
+    },
+    {
+      "id": "US-003",
+      "title": "Module Deliveries (Livraisons)",
+      "description": "Gestion des livraisons avec items multiples et photos",
+      "status": "pending",
+      "priority": "high",
+      "features": ["CRUD livraisons", "Items dynamiques", "Upload photos", "Mise à jour auto stock"]
+    },
+    {
+      "id": "US-004",
+      "title": "Module Suppliers (Fournisseurs)",
+      "description": "Gestion des fournisseurs avec catégories et rappels de commande",
+      "status": "pending",
+      "priority": "medium",
+      "features": ["CRUD fournisseurs", "11 catégories", "Jours commande/livraison", "Rappels"]
+    },
+    {
+      "id": "US-005",
+      "title": "Module Recipes (Recettes)",
+      "description": "Fiches recettes avec ingrédients, coûts et tags diététiques",
+      "status": "pending",
+      "priority": "medium",
+      "features": ["CRUD recettes", "Ingrédients liés produits", "Calcul coûts", "8 tags diététiques"]
+    },
+    {
+      "id": "US-006",
+      "title": "Module Clinic Menus",
+      "description": "Planning menus quotidiens pour patients et personnel",
+      "status": "pending",
+      "priority": "medium",
+      "features": ["Menus par jour", "3 repas (patient lunch/dinner, staff)", "Prévisions", "Calcul besoins"]
+    },
+    {
+      "id": "US-007",
+      "title": "Module Analytics",
+      "description": "Tableaux de bord et graphiques d'analyse",
+      "status": "pending",
+      "priority": "low",
+      "features": ["Charts évolution stock", "Répartition catégories", "Top consommations", "Prévisions"]
+    },
+    {
+      "id": "US-008",
+      "title": "OCR et Scan",
+      "description": "Scanner bons de livraison et fiches recettes",
+      "status": "pending",
+      "priority": "low",
+      "features": ["Tesseract.js", "Matching produits", "Import auto"]
+    },
+    {
+      "id": "US-009",
+      "title": "Export/Import",
+      "description": "Export JSON/Excel et import de données",
+      "status": "pending",
+      "priority": "low",
+      "features": ["Export JSON", "Export Excel", "Import JSON", "Email stock"]
+    }
+  ],
+  "techStack": {
+    "frontend": "React 19 + TypeScript + Vite + TailwindCSS 4",
+    "ui": "Radix UI + shadcn/ui",
+    "state": "TanStack React Query",
+    "forms": "React Hook Form + Zod",
+    "database": "Supabase (PostgreSQL)",
+    "charts": "Recharts",
+    "ocr": "Tesseract.js"
+  }
+}

@@ -62,6 +62,7 @@ const defaultValues: ProductFormValues = {
     unit: "kg",
     minStock: 0,
     price: 0,
+    avgConsumption: 0,
 }
 
 export function ProductDialog({ open, onOpenChange, product }: ProductDialogProps) {
@@ -82,6 +83,7 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
                 unit: product.unit,
                 minStock: product.minStock,
                 price: product.price,
+                avgConsumption: product.avgConsumption || 0,
             })
         } else {
             form.reset({
@@ -91,6 +93,7 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
                 unit: "kg",
                 minStock: 0,
                 price: 0,
+                avgConsumption: 0,
             })
         }
     }, [product, form, open])
