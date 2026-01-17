@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>StockPro Mobile</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/mobile.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="mobile-header">
+            <div class="header-left">
+                <span class="logo">📦 StockPro</span>
+            </div>
+            <div class="header-right">
+                <span class="sync-status" id="syncStatus">●</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="mobile-main" id="mainContent">
+            <!-- Dashboard View (default) -->
+            <section class="view active" id="view-dashboard">
+                <div class="alerts-section" id="alertsSection" style="display:none">
+                    <div class="alert-card order-reminder" id="orderReminders" style="display:none">
+                        <div class="alert-icon">📞</div>
+                        <div class="alert-text">
+                            <strong>Commander aujourd'hui</strong>
+                            <span id="orderRemindersList"></span>
+                        </div>
+                    </div>
+                    <div class="alert-card low-stock" id="lowStockAlert" style="display:none">
+                        <div class="alert-icon">⚠️</div>
+                        <div class="alert-text">
+                            <strong id="lowStockCount">0</strong> produits en stock bas
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-row">
+                    <div class="stat-box">
+                        <span class="stat-value" id="totalProducts">0</span>
+                        <span class="stat-label">Produits</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-value" id="criticalCount">0</span>
+                        <span class="stat-label">Critiques</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-value" id="todayExits">0</span>
+                        <span class="stat-label">Sorties</span>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <button class="action-card" onclick="MobileApp.showView('quick-exit')">
+                        <span class="action-icon">⚡</span>
+                        <span class="action-text">Sortie Rapide</span>
+                    </button>
+                    <button class="action-card" onclick="MobileApp.showView('scan')">
+                        <span class="action-icon">📷</span>
+                        <span class="action-text">Scanner</span>
+                    </button>
+                </div>
+
+                <div class="section-title">Produits à surveiller</div>
+                <div class="products-list" id="lowStockList">
+                    <div class="empty-state">Chargement...</div>
+                </div>
+            </section>
+
+            <!-- Quick Exit View -->
+            <section class="view" id="view-quick-exit">
+                <div class="view-header">
+                    <button class="back-btn" onclick="MobileApp.showView('dashboard')">←</button>
+                    <h2>Sortie Rapide</h2>
+                </div>
+                <div class="search-bar">
+                    <input type="text" id="searchProduct" placeholder="Rechercher un produit..."
+                        oninput="MobileApp.filterProducts()">
+                </div>
+                <div class="products-exit-list" id="productsExitList">
+                    <div class="empty-state">Chargement...</div>
+                </div>
+            </section>
+
+            <!-- Scan View -->
+            <section class="view" id="view-scan">
+                <div class="view-header">
+                    <button class="back-btn" onclick="MobileApp.showView('dashboard')">←</button>
+                    <h2>Scanner Bon</h2>
+                </div>
+                <div class="scan-container">
+                    <div class="scan-preview" id="scanPreview">
+                        <input type="file" id="scanInput" accept="image/*" capture="environment" hidden>
+                        <button class="scan-btn" onclick="document.getElementById('scanInput').click()">
+                            📷 Prendre une photo
+                        </button>
+                    </div>
+                    <div class="scan-result" id="scanResult" style="display:none">
+                        <div class="ocr-progress" id="ocrProgress" style="display:none">
+                            <div class="spinner"></div>
+                            <span>Analyse en cours...</span>
+                        </div>
+                        <div id="ocrResults"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Stock View -->
+            <section class="view" id="view-stock">
+                <div class="search-bar">
+                    <input type="text" id="searchStock" placeholder="Rechercher..." oninput="MobileApp.filterStock()">
+                </div>
+                <div class="stock-list" id="stockList">
+                    <div class="empty-state">Chargement...</div>
+                </div>
+            </section>
+
+            <!-- Suppliers View -->
+            <section class="view" id="view-suppliers">
+                <div class="suppliers-list" id="suppliersList">
+                    <div class="empty-state">Chargement...</div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-view="dashboard" onclick="MobileApp.showView('dashboard')">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label">Accueil</span>
+            </button>
+            <button class="nav-btn" data-view="quick-exit" onclick="MobileApp.showView('quick-exit')">
+                <span class="nav-icon">⚡</span>
+                <span class="nav-label">Sortie</span>
+            </button>
+            <button class="nav-btn scan-btn-nav" data-view="scan" onclick="MobileApp.showView('scan')">
+                <span class="nav-icon">📷</span>
+            </button>
+            <button class="nav-btn" data-view="stock" onclick="MobileApp.showView('stock')">
+                <span class="nav-icon">📦</span>
+                <span class="nav-label">Stock</span>
+            </button>
+            <button class="nav-btn" data-view="suppliers" onclick="MobileApp.showView('suppliers')">
+                <span class="nav-icon">🏢</span>
+                <span class="nav-label">Fourn.</span>
+            </button>
+        </nav>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toastContainer"></div>
+
+        <!-- Exit Modal -->
+        <div class="modal" id="exitModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="exitProductName">Produit</h3>
+                    <button class="close-btn" onclick="MobileApp.closeExitModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="stock-info">
+                        Stock actuel: <strong id="exitCurrentStock">0</strong> <span id="exitUnit"></span>
+                    </div>
+                    <div class="quantity-input">
+                        <button class="qty-btn minus" onclick="MobileApp.adjustQty(-1)">−</button>
+                        <input type="number" id="exitQuantity" value="1" min="0.1" step="0.1">
+                        <button class="qty-btn plus" onclick="MobileApp.adjustQty(1)">+</button>
+                    </div>
+                    <input type="text" id="exitReason" placeholder="Motif (optionnel)">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="MobileApp.closeExitModal()">Annuler</button>
+                    <button class="btn-confirm" onclick="MobileApp.confirmExit()">Confirmer</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Offline Banner -->
+        <div class="offline-banner" id="offlineBanner" style="display:none">
+            📴 Mode hors-ligne - Les données seront synchronisées au retour de la connexion
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="/mobile.js"></script>
+</body>
+
+</html>

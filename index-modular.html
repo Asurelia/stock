@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockPro Clinique - Version Modulaire (Test)</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+
+<body>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-icon"><i data-lucide="package"></i></span>
+                <span class="logo-text">StockPro <small style="color:#10b981">(Modular)</small></span>
+            </div>
+            <button class="sidebar-close" id="sidebarClose"><i data-lucide="x"></i></button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-tab="dashboard">
+                <span class="nav-icon"><i data-lucide="layout-dashboard"></i></span>
+                <span class="nav-text">Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="products">
+                <span class="nav-icon"><i data-lucide="package"></i></span>
+                <span class="nav-text">Produits</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="recipes">
+                <span class="nav-icon"><i data-lucide="chef-hat"></i></span>
+                <span class="nav-text">Recettes</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="outputs">
+                <span class="nav-icon"><i data-lucide="log-out"></i></span>
+                <span class="nav-text">Sorties</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="deliveries">
+                <span class="nav-icon"><i data-lucide="truck"></i></span>
+                <span class="nav-text">Livraisons</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="suppliers">
+                <span class="nav-icon"><i data-lucide="building-2"></i></span>
+                <span class="nav-text">Fournisseurs</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="photos">
+                <span class="nav-icon"><i data-lucide="camera"></i></span>
+                <span class="nav-text">Photos</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="menus">
+                <span class="nav-icon"><i data-lucide="calendar-days"></i></span>
+                <span class="nav-text">Menus Clinique</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="analytics">
+                <span class="nav-icon"><i data-lucide="bar-chart-3"></i></span>
+                <span class="nav-text">Analytiques</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="btn-export" id="btnExportJSON">
+                <i data-lucide="download"></i> Export JSON
+            </button>
+            <button class="btn-export" id="btnExportExcel">
+                <i data-lucide="file-spreadsheet"></i> Export Excel
+            </button>
+            <button class="btn-import" id="btnImport">
+                <i data-lucide="upload"></i> Importer
+            </button>
+            <input type="file" id="importFile" accept=".json,.xlsx,.xls" hidden>
+        </div>
+    </aside>
+    <header class="mobile-header">
+        <button class="hamburger" id="hamburger"><i data-lucide="menu"></i></button>
+        <h1 class="mobile-title">StockPro</h1>
+        <div class="mobile-notifications" id="mobileNotifications">
+            <span class="notification-badge" id="alertBadge">0</span>
+            <i data-lucide="bell"></i>
+        </div>
+    </header>
+    <main class="main-content" id="mainContent"></main>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ============= SCRIPTS ============= -->
+    <!-- 
+        Note: Icons et DietaryTags sont définis dans app-clinic.js
+        Ne pas charger js/core/icons.js pour éviter les redéclarations
+    -->
+
+    <!-- Fichiers originaux (fonctionnement complet) -->
+    <script src="app.js"></script>
+    <script src="app-methods.js"></script>
+    <script src="app-clinic.js"></script>
+
+    <!-- API Client (connexion backend) -->
+    <script src="js/core/api-client.js"></script>
+
+    <!-- Modules UI (extensions avec nouvelles fonctionnalités) -->
+    <script src="js/ui/products-ui.js"></script>
+    <script src="js/ui/dashboard.js"></script>
+
+    <!-- Initialize -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            lucide.createIcons();
+
+            // Délégation d'événements pour les headers triables
+            // Fonctionne même si le tableau est rendu après le chargement
+            document.body.addEventListener('click', (e) => {
+                const th = e.target.closest('th.sortable');
+                if (th && th.dataset.sort) {
+                    e.preventDefault();
+                    App.sortProductsBy(th.dataset.sort);
+                }
+            });
+
+            console.log('✅ StockPro Modular Edition loaded');
+        });
+    </script>
+</body>
+
+</html>
