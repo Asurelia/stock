@@ -10,10 +10,17 @@ export interface Product {
     price: number
 }
 
+function getSupabase() {
+    if (!supabase) {
+        throw new Error('Supabase non configuré. Vérifiez les variables d\'environnement VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY')
+    }
+    return supabase
+}
+
 export const api = {
     products: {
         getAll: async (): Promise<Product[]> => {
-            const { data, error } = await supabase
+            const { data, error } = await getSupabase()
                 .from('products')
                 .select('*')
                 .order('name')
@@ -32,7 +39,7 @@ export const api = {
         },
 
         getById: async (id: string): Promise<Product> => {
-            const { data, error } = await supabase
+            const { data, error } = await getSupabase()
                 .from('products')
                 .select('*')
                 .eq('id', id)
@@ -52,7 +59,7 @@ export const api = {
         },
 
         create: async (productData: Omit<Product, 'id'>): Promise<Product> => {
-            const { data, error } = await supabase
+            const { data, error } = await getSupabase()
                 .from('products')
                 .insert([{
                     name: productData.name,
@@ -79,7 +86,7 @@ export const api = {
         },
 
         update: async (id: string, productData: Partial<Product>): Promise<void> => {
-            const { error } = await supabase
+            const { error } = await getSupabase()
                 .from('products')
                 .update({
                     name: productData.name,
@@ -95,7 +102,7 @@ export const api = {
         },
 
         delete: async (id: string): Promise<void> => {
-            const { error } = await supabase
+            const { error } = await getSupabase()
                 .from('products')
                 .delete()
                 .eq('id', id)
