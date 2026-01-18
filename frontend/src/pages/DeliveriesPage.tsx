@@ -21,12 +21,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { PlusCircle, Loader2, Trash2, Truck, Package, X } from "lucide-react"
+import { PlusCircle, Loader2, Trash2, Truck, Package, X, Camera } from "lucide-react"
 import { toast } from "sonner"
+import { DeliveryScanDialog } from "@/components/ocr/DeliveryScanDialog"
 
 export function DeliveriesPage() {
     const queryClient = useQueryClient()
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [isScanDialogOpen, setIsScanDialogOpen] = useState(false)
 
     // Form state
     const [deliveryDate, setDeliveryDate] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -148,16 +150,21 @@ export function DeliveriesPage() {
                         Enregistrez les livraisons et mettez à jour le stock
                     </p>
                 </div>
-                <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                    setIsDialogOpen(open)
-                    if (!open) resetForm()
-                }}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Nouvelle Livraison
-                        </Button>
-                    </DialogTrigger>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => setIsScanDialogOpen(true)}>
+                        <Camera className="mr-2 h-4 w-4" />
+                        Scanner
+                    </Button>
+                    <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                        setIsDialogOpen(open)
+                        if (!open) resetForm()
+                    }}>
+                        <DialogTrigger asChild>
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Nouvelle Livraison
+                            </Button>
+                        </DialogTrigger>
                     <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>Nouvelle Livraison</DialogTitle>
@@ -282,7 +289,19 @@ export function DeliveriesPage() {
                         </form>
                     </DialogContent>
                 </Dialog>
+                </div>
             </div>
+
+            {/* Scan Dialog */}
+            <DeliveryScanDialog
+                open={isScanDialogOpen}
+                onOpenChange={setIsScanDialogOpen}
+                onConfirm={(scannedItems) => {
+                    setItems(scannedItems)
+                    setIsScanDialogOpen(false)
+                    setIsDialogOpen(true)
+                }}
+            />
 
             {/* Deliveries List */}
             {deliveries && deliveries.length > 0 ? (

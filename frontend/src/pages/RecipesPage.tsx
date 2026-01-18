@@ -21,12 +21,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { PlusCircle, Loader2, Trash2, ChefHat, Users, Euro, X, Pencil } from "lucide-react"
+import { PlusCircle, Loader2, Trash2, ChefHat, Users, Euro, X, Pencil, Camera } from "lucide-react"
 import { toast } from "sonner"
+import { RecipeScanDialog } from "@/components/ocr/RecipeScanDialog"
 
 export function RecipesPage() {
     const queryClient = useQueryClient()
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [isScanDialogOpen, setIsScanDialogOpen] = useState(false)
     const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null)
     const [searchTerm, setSearchTerm] = useState("")
     const [filterTag, setFilterTag] = useState<string>("")
@@ -197,16 +199,21 @@ export function RecipesPage() {
                         Gérez vos fiches recettes avec ingrédients et coûts
                     </p>
                 </div>
-                <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                    setIsDialogOpen(open)
-                    if (!open) resetForm()
-                }}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Nouvelle Recette
-                        </Button>
-                    </DialogTrigger>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => setIsScanDialogOpen(true)}>
+                        <Camera className="mr-2 h-4 w-4" />
+                        Scanner
+                    </Button>
+                    <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                        setIsDialogOpen(open)
+                        if (!open) resetForm()
+                    }}>
+                        <DialogTrigger asChild>
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Nouvelle Recette
+                            </Button>
+                        </DialogTrigger>
                     <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>
@@ -344,8 +351,24 @@ export function RecipesPage() {
                             </div>
                         </form>
                     </DialogContent>
-                </Dialog>
+                    </Dialog>
+                </div>
             </div>
+
+            {/* Scan Dialog */}
+            <RecipeScanDialog
+                open={isScanDialogOpen}
+                onOpenChange={setIsScanDialogOpen}
+                onConfirm={(scannedRecipe) => {
+                    setName(scannedRecipe.name)
+                    setPortions(scannedRecipe.portions)
+                    setDietaryTags(scannedRecipe.dietaryTags)
+                    setInstructions(scannedRecipe.instructions)
+                    setIngredients(scannedRecipe.ingredients)
+                    setIsScanDialogOpen(false)
+                    setIsDialogOpen(true)
+                }}
+            />
 
             {/* Filters */}
             <div className="flex gap-4">
