@@ -429,6 +429,34 @@ export function PlanningPage() {
         }
     }
 
+    // Vider le planning de la semaine affichée
+    const handleClearWeek = async () => {
+        if (!confirm(`⚠️ Êtes-vous sûr de vouloir supprimer TOUS les événements de la semaine du ${weekDates[0].toLocaleDateString()} ?\nCette action est irréversible.`)) return
+
+        try {
+            const startStr = formatDate(weekDates[0])
+            const endStr = formatDate(weekDates[6])
+
+            const eventsToDelete = events.filter(e =>
+                e.startDate >= startStr && e.startDate <= endStr
+            )
+
+            if (eventsToDelete.length === 0) {
+                toast.info("Aucun événement à supprimer pour cette semaine")
+                return
+            }
+
+            const deletePromises = eventsToDelete.map(e => api.scheduleEvents.delete(e.id))
+            await Promise.all(deletePromises)
+
+            await queryClient.invalidateQueries({ queryKey: ['schedule'] })
+            toast.success(`${eventsToDelete.length} événements supprimés`)
+        } catch (err) {
+            console.error(err)
+            toast.error("Erreur lors de la suppression")
+        }
+    }
+
     // Génération automatique du planning pour la semaine affichée
     const handleGeneratePlanning = async () => {
         if (!confirm(`Générer automatiquement les horaires de travail pour la semaine du ${weekDates[0].toLocaleDateString()} ?\nCela n'écrasera pas les événements existants.`)) return
@@ -623,6 +651,15 @@ export function PlanningPage() {
                                         aria-label="Aller à aujourd'hui"
                                     >
                                         Aujourd'hui
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={handleClearWeek}
+                                        title="Vider la semaine (Supprimer tous les événements)"
+                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
                                     </Button>
                                     <Button
                                         variant="ghost"
