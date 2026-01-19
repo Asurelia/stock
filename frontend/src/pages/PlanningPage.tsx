@@ -469,44 +469,39 @@ export function PlanningPage() {
 
                     // Si ce jour est dans ses jours de travail
                     if (targetDays.includes(dayKey)) {
+                        // Déterminer les horaires selon le rôle
+                        let startTime = '08:00'
+                        let endTime = '16:00'
+                        let hours = 8
+                        let notes = 'Auto-généré'
+
+                        const role = (staff.role || '').toLowerCase()
+
+                        if (role.includes('cuisinier') || role.includes('chef') || role.includes('second') || role.includes('commis')) {
+                            startTime = '07:00'
+                            endTime = '19:00'
+                            hours = 10
+                            notes = '07h-19h (2h pause)'
+                        } else if (role.includes('plongeur')) {
+                            startTime = '08:30'
+                            endTime = '20:30'
+                            hours = 10
+                            notes = '08h30-20h30 (2h pause)'
+                        } else if (role.includes('gérant') || role.includes('gerant') || role.includes('manager')) {
+                            startTime = '07:00'
+                            endTime = '15:30'
+                            hours = 8.5
+                            notes = '07h-15h30'
+                        }
+
                         // Vérifier s'il a déjà un événement ce jour là
-                        const hasEvent = events.some(e =>
+                        const existingEvent = events.find(e =>
                             e.staffId === staff.id &&
-                            // startDate est une string 'YYYY-MM-DD'
                             e.startDate === formatDate(date)
                         )
 
-                        if (!hasEvent) {
-                            // Déterminer les horaires selon le rôle
-                            let startTime = '08:00'
-                            let endTime = '16:00'
-                            let hours = 8
-                            let notes = 'Auto-généré'
-
-                            const role = (staff.role || '').toLowerCase()
-
-                            // Cuisiniers : 7h-19h (10h travail effectif, 2h pause)
-                            if (role.includes('cuisinier') || role.includes('chef') || role.includes('second') || role.includes('commis')) {
-                                startTime = '07:00'
-                                endTime = '19:00'
-                                hours = 10
-                                notes = '07h-19h (2h pause)'
-                            }
-                            // Plongeurs : 8h30-20h30 (10h travail effectif, 2h pause)
-                            else if (role.includes('plongeur')) {
-                                startTime = '08:30'
-                                endTime = '20:30'
-                                hours = 10
-                                notes = '08h30-20h30 (2h pause)'
-                            }
-                            // Gérant : 7h-15h30
-                            else if (role.includes('gérant') || role.includes('gerant') || role.includes('manager')) {
-                                startTime = '07:00'
-                                endTime = '15:30'
-                                hours = 8.5
-                                notes = '07h-15h30'
-                            }
-
+                        if (!existingEvent) {
+                            // Créer
                             newEvents.push(api.scheduleEvents.create({
                                 staffId: staff.id,
                                 startDate: formatDate(date),
@@ -519,6 +514,17 @@ export function PlanningPage() {
                                 isValidated: false
                             }))
                             createdCount++
+                        } else if (existingEvent.eventType === 'work' && (existingEvent.startTime !== startTime || existingEvent.endTime !== endTime)) {
+                            // Mettre à jour si les horaires sont différents (sauf si c'est une modif manuelle validée ? on suppose qu'on veut corriger)
+                            // On vérifie si c'est un event "auto" ou si l'user veut forcer.
+                            // Pour simplifier : on met à jour l'horaire pour coller au rôle.
+                            newEvents.push(api.scheduleEvents.update(existingEvent.id, {
+                                startTime,
+                                endTime,
+                                hours,
+                                notes
+                            }))
+                            createdCount++ // On compte aussi les updates
                         }
                     }
                 })
