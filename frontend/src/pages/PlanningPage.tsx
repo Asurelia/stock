@@ -435,7 +435,10 @@ export function PlanningPage() {
 
         try {
             // Récupérer la liste des staff fraîchement mise à jour (pour être sûr d'avoir les bon jours de travail)
-            const freshStaffList = await api.staff.getAll()
+            const [freshStaffList, freshEvents] = await Promise.all([
+                api.staff.getAll(),
+                api.scheduleEvents.getAll()
+            ])
 
             // 1. Déterminer si la semaine affichée s'aligne sur "Semaine 1" ou "Semaine 2"
             // On utilise le numéro de semaine ISO. Paire = Semaine 2 (B), Impaire = Semaine 1 (A)
@@ -494,8 +497,8 @@ export function PlanningPage() {
                             notes = '07h-15h30'
                         }
 
-                        // Vérifier s'il a déjà un événement ce jour là
-                        const existingEvent = events.find(e =>
+                        // Vérifier s'il a déjà un événement ce jour là avec les données FRAÎCHES
+                        const existingEvent = freshEvents.find(e =>
                             e.staffId === staff.id &&
                             e.startDate === formatDate(date)
                         )
@@ -514,17 +517,18 @@ export function PlanningPage() {
                                 isValidated: false
                             }))
                             createdCount++
-                        } else if (existingEvent.eventType === 'work' && (existingEvent.startTime !== startTime || existingEvent.endTime !== endTime)) {
-                            // Mettre à jour si les horaires sont différents (sauf si c'est une modif manuelle validée ? on suppose qu'on veut corriger)
-                            // On vérifie si c'est un event "auto" ou si l'user veut forcer.
-                            // Pour simplifier : on met à jour l'horaire pour coller au rôle.
-                            newEvents.push(api.scheduleEvents.update(existingEvent.id, {
-                                startTime,
-                                endTime,
-                                hours,
-                                notes
-                            }))
-                            createdCount++ // On compte aussi les updates
+                        } else if (existingEvent.eventType === 'work') {
+                            // Si un event travail existe déjà, ON FORCE la mise à jour des horaires pour correspondre au rôle/config actuelle
+                            // Cela permet de corriger les erreurs (ex: 8h->7h) et d'éviter les incohérences
+                            if (existingEvent.startTime !== startTime || existingEvent.endTime !== endTime) {
+                                newEvents.push(api.scheduleEvents.update(existingEvent.id, {
+                                    startTime,
+                                    endTime,
+                                    hours,
+                                    notes
+                                }))
+                                createdCount++
+                            }
                         }
                     }
                 })
