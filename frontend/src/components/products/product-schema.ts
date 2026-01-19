@@ -16,6 +16,7 @@ export const productSchema = z.object({
     minStock: z.coerce.number().min(0).default(0),
     price: z.coerce.number().min(0).default(0),
     avgConsumption: z.coerce.number().min(0).default(0),
+    requiresTraceabilityPhoto: z.boolean().default(true),
 })
 
 export type ProductFormValues = z.infer<typeof productSchema>

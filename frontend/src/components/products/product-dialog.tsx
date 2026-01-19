@@ -30,6 +30,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 
 import type { Product } from "@/lib/api"
 import { api } from "@/lib/api"
@@ -63,6 +64,7 @@ const defaultValues: ProductFormValues = {
     minStock: 0,
     price: 0,
     avgConsumption: 0,
+    requiresTraceabilityPhoto: true,
 }
 
 export function ProductDialog({ open, onOpenChange, product }: ProductDialogProps) {
@@ -84,6 +86,7 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
                 minStock: product.minStock,
                 price: product.price,
                 avgConsumption: product.avgConsumption || 0,
+                requiresTraceabilityPhoto: product.requiresTraceabilityPhoto !== false,
             })
         } else {
             form.reset({
@@ -94,6 +97,7 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
                 minStock: 0,
                 price: 0,
                 avgConsumption: 0,
+                requiresTraceabilityPhoto: true,
             })
         }
     }, [product, form, open])
@@ -236,6 +240,27 @@ export function ProductDialog({ open, onOpenChange, product }: ProductDialogProp
                                         <Input type="number" step="0.01" {...field} />
                                     </FormControl>
                                     <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control as any}
+                            name="requiresTraceabilityPhoto"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                    <div className="space-y-0.5">
+                                        <FormLabel>Photo de traçabilité</FormLabel>
+                                        <p className="text-sm text-muted-foreground">
+                                            Exiger une photo d'étiquette pour ce produit
+                                        </p>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
                                 </FormItem>
                             )}
                         />

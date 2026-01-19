@@ -6,7 +6,7 @@ import { ProductDialog } from "@/components/products/product-dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ConfirmDialog } from "@/components/common/ConfirmDialog"
-import { PlusCircle, Loader2, ArrowUpDown, MoreHorizontal, Pencil, Trash2, Plus, Minus } from "lucide-react"
+import { PlusCircle, Loader2, ArrowUpDown, MoreHorizontal, Pencil, Trash2, Plus, Minus, Camera, CameraOff } from "lucide-react"
 import { toast } from "sonner"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
@@ -98,6 +98,39 @@ export function ProductsPage() {
             accessorKey: "category",
             header: "Catégorie",
             cell: ({ row }) => <Badge variant="outline">{row.getValue("category") || "Sans catégorie"}</Badge>,
+        },
+        {
+            accessorKey: "requiresTraceabilityPhoto",
+            header: ({ column }) => {
+                return (
+                    <Button
+                        variant="ghost"
+                        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                        aria-label="Trier par traçabilité"
+                    >
+                        Traçabilité
+                        <ArrowUpDown className="ml-2 h-4 w-4" aria-hidden="true" />
+                    </Button>
+                )
+            },
+            cell: ({ row }) => {
+                const required = row.original.requiresTraceabilityPhoto
+                return (
+                    <div className="flex justify-center w-full">
+                        {required ? (
+                            <div className="flex items-center text-green-600" title="Photo requise">
+                                <Camera className="h-4 w-4 mr-1" />
+                                <span className="text-xs">Requise</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center text-muted-foreground/50" title="Photo optionnelle">
+                                <CameraOff className="h-4 w-4 mr-1" />
+                                <span className="text-xs">Optionnelle</span>
+                            </div>
+                        )}
+                    </div>
+                )
+            },
         },
         {
             accessorKey: "quantity",
