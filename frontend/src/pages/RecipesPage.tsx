@@ -378,12 +378,12 @@ export function RecipesPage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="max-w-xs"
                 />
-                <Select value={filterTag} onValueChange={setFilterTag}>
+                <Select value={filterTag || "all"} onValueChange={(v) => setFilterTag(v === "all" ? "" : v)}>
                     <SelectTrigger className="w-48">
                         <SelectValue placeholder="Tous les régimes" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">Tous les régimes</SelectItem>
+                        <SelectItem value="all">Tous les régimes</SelectItem>
                         {DIETARY_TAGS.map(tag => (
                             <SelectItem key={tag.value} value={tag.value}>{tag.label}</SelectItem>
                         ))}

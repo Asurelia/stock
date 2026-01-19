@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { api, type ClinicMenu, type MealData, type PunctualOrder, type Recipe } from "@/lib/api"
+import { api, type Recipe } from "@/lib/api"
 import { format, addDays, subDays } from "date-fns"
 import { fr } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogFooter,
 } from "@/components/ui/dialog"
 import {
     Select,
@@ -26,35 +27,55 @@ import {
     ChevronLeft,
     ChevronRight,
     Loader2,
-    Users,
-    User,
-    ClipboardList,
     ChefHat,
     PlusCircle,
     Trash2,
     Package,
-    Save
+    Save,
+    UtensilsCrossed
 } from "lucide-react"
 import { toast } from "sonner"
+
+const MEAL_TYPES = [
+    { value: 'breakfast', label: 'Petit-déjeuner', icon: '🌅' },
+    { value: 'lunch', label: 'Déjeuner', icon: '☀️' },
+    { value: 'dinner', label: 'Dîner', icon: '🌙' },
+    { value: 'snack', label: 'Collation', icon: '🍎' },
+] as const
+
+interface MenuWithRecipes {
+    id: string
+    name: string
+    menu_date: string
+    meal_type: string | null
+    notes: string | null
+    menu_recipes: {
+        id: string
+        recipe_id: string
+        servings: number | null
+        recipes: { name: string } | null
+    }[]
+}
 
 export function MenusPage() {
     const queryClient = useQueryClient()
     const [currentDate, setCurrentDate] = useState(format(new Date(), 'yyyy-MM-dd'))
-    const [editingMeal, setEditingMeal] = useState<{ type: 'patientLunch' | 'patientDinner' | 'staffLunch' } | null>(null)
-    const [notes, setNotes] = useState("")
+    const [showAddMenu, setShowAddMenu] = useState(false)
+    const [showAddRecipe, setShowAddRecipe] = useState<string | null>(null)
 
-    // Meal form state
+    // Form state
+    const [menuName, setMenuName] = useState("")
+    const [menuMealType, setMenuMealType] = useState<string>("lunch")
+    const [menuNotes, setMenuNotes] = useState("")
     const [selectedRecipeId, setSelectedRecipeId] = useState("")
-    const [mealPortions, setMealPortions] = useState(1)
+    const [recipeServings, setRecipeServings] = useState(1)
 
-    // Punctual order form
-    const [punctualName, setPunctualName] = useState("")
-    const [punctualQty, setPunctualQty] = useState(1)
-
-    const { data: menu, isLoading: loadingMenu } = useQuery({
-        queryKey: ['clinic-menu', currentDate],
-        queryFn: () => api.clinicMenus.getByDate(currentDate)
+    const { data: menusData, isLoading: loadingMenus } = useQuery({
+        queryKey: ['menus', currentDate],
+        queryFn: () => api.menus.getByDate(currentDate)
     })
+
+    const menus = menusData as MenuWithRecipes[] | undefined
 
     const { data: recipes } = useQuery({
         queryKey: ['recipes'],
@@ -66,14 +87,53 @@ export function MenusPage() {
         queryFn: api.products.getAll
     })
 
-    const saveMutation = useMutation({
-        mutationFn: api.clinicMenus.save,
+    const createMenuMutation = useMutation({
+        mutationFn: api.menus.create,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['clinic-menu'] })
-            toast.success("Menu sauvegardé")
+            queryClient.invalidateQueries({ queryKey: ['menus'] })
+            toast.success("Menu créé")
+            resetForm()
+            setShowAddMenu(false)
         },
-        onError: () => toast.error("Erreur lors de la sauvegarde")
+        onError: () => toast.error("Erreur lors de la création")
     })
+
+    const deleteMenuMutation = useMutation({
+        mutationFn: api.menus.delete,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['menus'] })
+            toast.success("Menu supprimé")
+        },
+        onError: () => toast.error("Erreur lors de la suppression")
+    })
+
+    const addRecipeMutation = useMutation({
+        mutationFn: ({ menuId, recipeId, servings }: { menuId: string; recipeId: string; servings: number }) =>
+            api.menus.addRecipe(menuId, recipeId, servings),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['menus'] })
+            toast.success("Recette ajoutée")
+            setShowAddRecipe(null)
+            setSelectedRecipeId("")
+            setRecipeServings(1)
+        },
+        onError: () => toast.error("Erreur lors de l'ajout")
+    })
+
+    const removeRecipeMutation = useMutation({
+        mutationFn: api.menus.removeRecipe,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['menus'] })
+            toast.success("Recette retirée")
+        },
+        onError: () => toast.error("Erreur lors de la suppression")
+    })
+
+    const resetForm = () => {
+        setMenuName("")
+        setMenuMealType("lunch")
+        setMenuNotes("")
+    }
 
     const handlePrevDay = () => {
         setCurrentDate(format(subDays(new Date(currentDate), 1), 'yyyy-MM-dd'))
@@ -83,155 +143,57 @@ export function MenusPage() {
         setCurrentDate(format(addDays(new Date(currentDate), 1), 'yyyy-MM-dd'))
     }
 
-    const openMealDialog = (type: 'patientLunch' | 'patientDinner' | 'staffLunch') => {
-        const currentMeal = menu?.[type] || {}
-        setSelectedRecipeId(currentMeal.recipeId || "")
-        setMealPortions(currentMeal.portions || 1)
-        setEditingMeal({ type })
+    const handleCreateMenu = () => {
+        if (!menuName) return
+        createMenuMutation.mutate({
+            name: menuName,
+            menu_date: currentDate,
+            meal_type: menuMealType,
+            notes: menuNotes || undefined
+        })
     }
 
-    const handleSaveMeal = () => {
-        if (!editingMeal) return
-
-        const recipe = recipes?.find(r => r.id === selectedRecipeId)
-        const mealData: MealData = selectedRecipeId ? {
+    const handleAddRecipe = () => {
+        if (!showAddRecipe || !selectedRecipeId) return
+        addRecipeMutation.mutate({
+            menuId: showAddRecipe,
             recipeId: selectedRecipeId,
-            recipeName: recipe?.name || "",
-            portions: mealPortions
-        } : {}
-
-        const updatedMenu: Omit<ClinicMenu, 'id'> & { id?: string } = {
-            id: menu?.id,
-            date: currentDate,
-            patientLunch: editingMeal.type === 'patientLunch' ? mealData : (menu?.patientLunch || {}),
-            patientDinner: editingMeal.type === 'patientDinner' ? mealData : (menu?.patientDinner || {}),
-            staffLunch: editingMeal.type === 'staffLunch' ? mealData : (menu?.staffLunch || {}),
-            punctualOrders: menu?.punctualOrders || [],
-            notes: menu?.notes || ""
-        }
-
-        saveMutation.mutate(updatedMenu)
-        setEditingMeal(null)
-    }
-
-    const handleAddPunctualOrder = () => {
-        if (!punctualName) return
-
-        const newOrder: PunctualOrder = { name: punctualName, quantity: punctualQty }
-        const updatedOrders = [...(menu?.punctualOrders || []), newOrder]
-
-        saveMutation.mutate({
-            id: menu?.id,
-            date: currentDate,
-            patientLunch: menu?.patientLunch || {},
-            patientDinner: menu?.patientDinner || {},
-            staffLunch: menu?.staffLunch || {},
-            punctualOrders: updatedOrders,
-            notes: menu?.notes || ""
-        })
-
-        setPunctualName("")
-        setPunctualQty(1)
-    }
-
-    const handleRemovePunctualOrder = (index: number) => {
-        const updatedOrders = (menu?.punctualOrders || []).filter((_, i) => i !== index)
-
-        saveMutation.mutate({
-            id: menu?.id,
-            date: currentDate,
-            patientLunch: menu?.patientLunch || {},
-            patientDinner: menu?.patientDinner || {},
-            staffLunch: menu?.staffLunch || {},
-            punctualOrders: updatedOrders,
-            notes: menu?.notes || ""
+            servings: recipeServings
         })
     }
 
-    const handleSaveNotes = () => {
-        saveMutation.mutate({
-            id: menu?.id,
-            date: currentDate,
-            patientLunch: menu?.patientLunch || {},
-            patientDinner: menu?.patientDinner || {},
-            staffLunch: menu?.staffLunch || {},
-            punctualOrders: menu?.punctualOrders || [],
-            notes
-        })
-    }
-
-    // Calculate ingredient needs
+    // Calculate ingredient needs for all menus of the day
     const calculateNeeds = () => {
         const needs: Record<string, { productId: string; name: string; quantity: number; unit: string }> = {}
 
-        const addMealNeeds = (meal: MealData | undefined) => {
-            if (!meal?.recipeId) return
-            const recipe = recipes?.find(r => r.id === meal.recipeId)
-            if (!recipe) return
+        menus?.forEach(menu => {
+            menu.menu_recipes?.forEach(mr => {
+                const recipe = recipes?.find(r => r.id === mr.recipe_id)
+                if (!recipe) return
 
-            const multiplier = (meal.portions || 1) / recipe.portions
+                const multiplier = (mr.servings || 1) / recipe.portions
 
-            recipe.ingredients.forEach(ing => {
-                const key = ing.productId || ing.productName
-                if (!needs[key]) {
-                    needs[key] = {
-                        productId: ing.productId,
-                        name: ing.productName,
-                        quantity: 0,
-                        unit: ing.unit
+                recipe.ingredients.forEach(ing => {
+                    const key = ing.productId || ing.productName
+                    if (!needs[key]) {
+                        needs[key] = {
+                            productId: ing.productId,
+                            name: ing.productName,
+                            quantity: 0,
+                            unit: ing.unit
+                        }
                     }
-                }
-                needs[key].quantity += ing.quantity * multiplier
+                    needs[key].quantity += ing.quantity * multiplier
+                })
             })
-        }
-
-        addMealNeeds(menu?.patientLunch)
-        addMealNeeds(menu?.patientDinner)
-        addMealNeeds(menu?.staffLunch)
+        })
 
         return Object.values(needs)
     }
 
     const ingredientNeeds = calculateNeeds()
 
-    const MealCard = ({ title, icon: Icon, mealKey, meal }: {
-        title: string
-        icon: typeof Users
-        mealKey: 'patientLunch' | 'patientDinner' | 'staffLunch'
-        meal?: MealData
-    }) => (
-        <Card>
-            <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                    <Icon className="h-4 w-4" />
-                    {title}
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                {meal?.recipeId ? (
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                            <ChefHat className="h-4 w-4 text-orange-500" />
-                            <span className="font-medium">{meal.recipeName}</span>
-                        </div>
-                        <Badge variant="outline">{meal.portions} portions</Badge>
-                    </div>
-                ) : (
-                    <p className="text-sm text-muted-foreground">Non défini</p>
-                )}
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3 w-full"
-                    onClick={() => openMealDialog(mealKey)}
-                >
-                    {meal?.recipeId ? "Modifier" : "Définir"}
-                </Button>
-            </CardContent>
-        </Card>
-    )
-
-    if (loadingMenu) {
+    if (loadingMenus) {
         return (
             <div className="flex items-center justify-center h-[50vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -244,9 +206,9 @@ export function MenusPage() {
             {/* Header with Date Navigation */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Menus Clinique</h2>
+                    <h2 className="text-3xl font-bold tracking-tight">Menus du Jour</h2>
                     <p className="text-muted-foreground">
-                        Planifiez les repas patients et personnel
+                        Planifiez les repas et gérez les recettes
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -272,112 +234,116 @@ export function MenusPage() {
                 </h3>
             </div>
 
-            {/* Meals Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <MealCard
-                    title="Déjeuner Patients"
-                    icon={Users}
-                    mealKey="patientLunch"
-                    meal={menu?.patientLunch}
-                />
-                <MealCard
-                    title="Dîner Patients"
-                    icon={Users}
-                    mealKey="patientDinner"
-                    meal={menu?.patientDinner}
-                />
-                <MealCard
-                    title="Déjeuner Personnel"
-                    icon={User}
-                    mealKey="staffLunch"
-                    meal={menu?.staffLunch}
-                />
+            {/* Add Menu Button */}
+            <div className="flex justify-center">
+                <Button onClick={() => setShowAddMenu(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Ajouter un menu
+                </Button>
             </div>
 
-            {/* Punctual Orders */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <ClipboardList className="h-5 w-5" />
-                        Commandes Ponctuelles
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex gap-2">
-                        <Input
-                            placeholder="Description"
-                            value={punctualName}
-                            onChange={(e) => setPunctualName(e.target.value)}
-                            className="flex-1"
-                        />
-                        <Input
-                            type="number"
-                            min="1"
-                            value={punctualQty}
-                            onChange={(e) => setPunctualQty(parseInt(e.target.value) || 1)}
-                            className="w-20"
-                        />
-                        <Button onClick={handleAddPunctualOrder} disabled={!punctualName}>
-                            <PlusCircle className="h-4 w-4" />
-                        </Button>
-                    </div>
-
-                    {menu?.punctualOrders && menu.punctualOrders.length > 0 ? (
-                        <div className="space-y-2">
-                            {menu.punctualOrders.map((order, index) => (
-                                <div key={index} className="flex justify-between items-center p-2 bg-secondary rounded-lg">
-                                    <span>{order.name}</span>
-                                    <div className="flex items-center gap-2">
-                                        <Badge variant="outline">{order.quantity}</Badge>
+            {/* Menus Grid */}
+            {menus && menus.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {menus.map(menu => {
+                        const mealType = MEAL_TYPES.find(t => t.value === menu.meal_type)
+                        return (
+                            <Card key={menu.id}>
+                                <CardHeader className="pb-2">
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <span>{mealType?.icon || '🍽️'}</span>
+                                            {menu.name}
+                                        </CardTitle>
                                         <Button
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 text-red-500"
-                                            onClick={() => handleRemovePunctualOrder(index)}
+                                            onClick={() => deleteMenuMutation.mutate(menu.id)}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                            Aucune commande ponctuelle
-                        </p>
-                    )}
-                </CardContent>
-            </Card>
+                                    {mealType && (
+                                        <Badge variant="outline">{mealType.label}</Badge>
+                                    )}
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {/* Recipes in this menu */}
+                                    <div className="space-y-2">
+                                        {menu.menu_recipes && menu.menu_recipes.length > 0 ? (
+                                            menu.menu_recipes.map(mr => (
+                                                <div key={mr.id} className="flex items-center justify-between p-2 bg-secondary rounded-lg">
+                                                    <div className="flex items-center gap-2">
+                                                        <ChefHat className="h-4 w-4 text-orange-500" />
+                                                        <span className="font-medium">
+                                                            {mr.recipes?.name || 'Recette inconnue'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge variant="outline">{mr.servings} portions</Badge>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 text-red-500"
+                                                            onClick={() => removeRecipeMutation.mutate(mr.id)}
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground text-center py-2">
+                                                Aucune recette
+                                            </p>
+                                        )}
+                                    </div>
 
-            {/* Notes */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Notes du Jour</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <Textarea
-                        placeholder="Spécificités, régimes adaptés, remarques..."
-                        value={notes || menu?.notes || ""}
-                        onChange={(e) => setNotes(e.target.value)}
-                        rows={3}
-                    />
-                    <Button onClick={handleSaveNotes} disabled={saveMutation.isPending}>
-                        <Save className="mr-2 h-4 w-4" />
-                        Sauvegarder
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full"
+                                        onClick={() => setShowAddRecipe(menu.id)}
+                                    >
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Ajouter une recette
+                                    </Button>
+
+                                    {menu.notes && (
+                                        <p className="text-sm text-muted-foreground italic">
+                                            {menu.notes}
+                                        </p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )
+                    })}
+                </div>
+            ) : (
+                <Card className="p-12 text-center">
+                    <UtensilsCrossed className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Aucun menu pour ce jour</h3>
+                    <p className="text-muted-foreground mb-4">
+                        Commencez par créer un menu pour planifier les repas
+                    </p>
+                    <Button onClick={() => setShowAddMenu(true)}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Créer un menu
                     </Button>
-                </CardContent>
-            </Card>
+                </Card>
+            )}
 
             {/* Ingredient Needs */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Package className="h-5 w-5" />
-                        Besoins en Ingrédients
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {ingredientNeeds.length > 0 ? (
+            {ingredientNeeds.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Package className="h-5 w-5" />
+                            Besoins en Ingrédients
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
                         <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                             {ingredientNeeds.map((need, index) => {
                                 const product = products?.find(p => p.id === need.productId)
@@ -387,8 +353,8 @@ export function MenusPage() {
                                     <div
                                         key={index}
                                         className={`p-3 rounded-lg border ${hasStock
-                                                ? 'bg-green-50 border-green-200'
-                                                : 'bg-red-50 border-red-200'
+                                            ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
+                                            : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
                                             }`}
                                     >
                                         <div className="flex justify-between items-center">
@@ -406,19 +372,69 @@ export function MenusPage() {
                                 )
                             })}
                         </div>
-                    ) : (
-                        <p className="text-center text-muted-foreground py-4">
-                            Définissez les menus pour voir les besoins
-                        </p>
-                    )}
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            )}
 
-            {/* Meal Dialog */}
-            <Dialog open={editingMeal !== null} onOpenChange={() => setEditingMeal(null)}>
+            {/* Add Menu Dialog */}
+            <Dialog open={showAddMenu} onOpenChange={setShowAddMenu}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Définir le repas</DialogTitle>
+                        <DialogTitle>Nouveau Menu</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Nom du menu</Label>
+                            <Input
+                                placeholder="Ex: Menu du jour, Menu végétarien..."
+                                value={menuName}
+                                onChange={(e) => setMenuName(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Type de repas</Label>
+                            <Select value={menuMealType} onValueChange={setMenuMealType}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Sélectionner un type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {MEAL_TYPES.map(type => (
+                                        <SelectItem key={type.value} value={type.value}>
+                                            {type.icon} {type.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Notes (optionnel)</Label>
+                            <Textarea
+                                placeholder="Remarques, régimes spéciaux..."
+                                value={menuNotes}
+                                onChange={(e) => setMenuNotes(e.target.value)}
+                                rows={2}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowAddMenu(false)}>
+                            Annuler
+                        </Button>
+                        <Button onClick={handleCreateMenu} disabled={!menuName || createMenuMutation.isPending}>
+                            {createMenuMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Créer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Recipe to Menu Dialog */}
+            <Dialog open={showAddRecipe !== null} onOpenChange={() => setShowAddRecipe(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Ajouter une recette</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
@@ -428,7 +444,6 @@ export function MenusPage() {
                                     <SelectValue placeholder="Sélectionner une recette" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucune</SelectItem>
                                     {recipes?.map(recipe => (
                                         <SelectItem key={recipe.id} value={recipe.id}>
                                             {recipe.name} ({recipe.portions} portions)
@@ -443,21 +458,20 @@ export function MenusPage() {
                             <Input
                                 type="number"
                                 min="1"
-                                value={mealPortions}
-                                onChange={(e) => setMealPortions(parseInt(e.target.value) || 1)}
+                                value={recipeServings}
+                                onChange={(e) => setRecipeServings(parseInt(e.target.value) || 1)}
                             />
                         </div>
-
-                        <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setEditingMeal(null)}>
-                                Annuler
-                            </Button>
-                            <Button onClick={handleSaveMeal} disabled={saveMutation.isPending}>
-                                {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Enregistrer
-                            </Button>
-                        </div>
                     </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowAddRecipe(null)}>
+                            Annuler
+                        </Button>
+                        <Button onClick={handleAddRecipe} disabled={!selectedRecipeId || addRecipeMutation.isPending}>
+                            {addRecipeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Ajouter
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

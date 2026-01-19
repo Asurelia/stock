@@ -21,14 +21,21 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { PlusCircle, Loader2, Trash2, Truck, Package, X, Camera } from "lucide-react"
+import { PlusCircle, Loader2, Trash2, Truck, Package, X, Camera, FileSpreadsheet } from "lucide-react"
 import { toast } from "sonner"
 import { DeliveryScanDialog } from "@/components/ocr/DeliveryScanDialog"
+import { CSVImportDialog } from "@/components/deliveries/CSVImportDialog"
+import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 
 export function DeliveriesPage() {
     const queryClient = useQueryClient()
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isScanDialogOpen, setIsScanDialogOpen] = useState(false)
+    const [isCSVDialogOpen, setIsCSVDialogOpen] = useState(false)
+    const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; delivery: Delivery | null }>({
+        open: false,
+        delivery: null,
+    })
 
     // Form state
     const [deliveryDate, setDeliveryDate] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -118,9 +125,14 @@ export function DeliveriesPage() {
         })
     }
 
-    const handleDelete = (id: string) => {
-        if (confirm("Supprimer cette livraison ? Le stock sera ajusté.")) {
-            deleteMutation.mutate(id)
+    const handleDelete = (delivery: Delivery) => {
+        setDeleteConfirm({ open: true, delivery })
+    }
+
+    const handleDeleteConfirm = async () => {
+        if (deleteConfirm.delivery) {
+            await deleteMutation.mutateAsync(deleteConfirm.delivery.id)
+            setDeleteConfirm({ open: false, delivery: null })
         }
     }
 
@@ -151,6 +163,10 @@ export function DeliveriesPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => setIsCSVDialogOpen(true)}>
+                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                        Import CSV
+                    </Button>
                     <Button variant="outline" onClick={() => setIsScanDialogOpen(true)}>
                         <Camera className="mr-2 h-4 w-4" />
                         Scanner
@@ -303,6 +319,18 @@ export function DeliveriesPage() {
                 }}
             />
 
+            {/* CSV Import Dialog */}
+            <CSVImportDialog
+                open={isCSVDialogOpen}
+                onOpenChange={setIsCSVDialogOpen}
+                onConfirm={(csvItems, csvSupplier) => {
+                    setItems(csvItems)
+                    setSupplierName(csvSupplier)
+                    setIsCSVDialogOpen(false)
+                    setIsDialogOpen(true)
+                }}
+            />
+
             {/* Deliveries List */}
             {deliveries && deliveries.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -323,7 +351,7 @@ export function DeliveriesPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-8 w-8 text-red-500"
-                                        onClick={() => handleDelete(delivery.id)}
+                                        onClick={() => handleDelete(delivery)}
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -362,6 +390,17 @@ export function DeliveriesPage() {
                     </CardContent>
                 </Card>
             )}
+
+            <ConfirmDialog
+                open={deleteConfirm.open}
+                onOpenChange={(open) => setDeleteConfirm({ open, delivery: open ? deleteConfirm.delivery : null })}
+                title="Supprimer la livraison"
+                description={`Supprimer cette livraison du ${deleteConfirm.delivery?.date ? format(new Date(deleteConfirm.delivery.date), 'dd/MM/yyyy') : ''} ? Le stock sera ajusté.`}
+                confirmText="Supprimer"
+                variant="destructive"
+                onConfirm={handleDeleteConfirm}
+                isLoading={deleteMutation.isPending}
+            />
         </div>
     )
 }

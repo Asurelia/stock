@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/accordion"
 import { PlusCircle, Loader2, Trash2, Phone, Mail, User, Building2, Pencil } from "lucide-react"
 import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 
 const WEEKDAYS = [
     { value: 'lundi', label: 'Lundi' },
@@ -44,6 +45,10 @@ export function SuppliersPage() {
     const queryClient = useQueryClient()
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean
+        supplierId: string | null
+    }>({ isOpen: false, supplierId: null })
 
     // Form state
     const [name, setName] = useState("")
@@ -146,9 +151,14 @@ export function SuppliersPage() {
     }
 
     const handleDelete = (id: string) => {
-        if (confirm("Supprimer ce fournisseur ?")) {
-            deleteMutation.mutate(id)
+        setConfirmDialog({ isOpen: true, supplierId: id })
+    }
+
+    const confirmDelete = () => {
+        if (confirmDialog.supplierId) {
+            deleteMutation.mutate(confirmDialog.supplierId)
         }
+        setConfirmDialog({ isOpen: false, supplierId: null })
     }
 
     const toggleDay = (day: string, list: string[], setList: (days: string[]) => void) => {
@@ -374,6 +384,7 @@ export function SuppliersPage() {
                                                                 size="icon"
                                                                 className="h-8 w-8"
                                                                 onClick={() => handleEdit(supplier)}
+                                                                aria-label="Modifier le fournisseur"
                                                             >
                                                                 <Pencil className="h-4 w-4" />
                                                             </Button>
@@ -382,6 +393,7 @@ export function SuppliersPage() {
                                                                 size="icon"
                                                                 className="h-8 w-8 text-red-500"
                                                                 onClick={() => handleDelete(supplier.id)}
+                                                                aria-label="Supprimer le fournisseur"
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>
@@ -441,6 +453,16 @@ export function SuppliersPage() {
                     </CardContent>
                 </Card>
             )}
+
+            <ConfirmDialog
+                open={confirmDialog.isOpen}
+                onOpenChange={(open) => setConfirmDialog({ isOpen: open, supplierId: open ? confirmDialog.supplierId : null })}
+                onConfirm={confirmDelete}
+                title="Supprimer ce fournisseur ?"
+                description="Cette action est irréversible. Toutes les informations du fournisseur seront définitivement supprimées."
+                confirmText="Supprimer"
+                variant="destructive"
+            />
         </div>
     )
 }

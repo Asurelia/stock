@@ -14,14 +14,18 @@ export interface Product {
     minStock: number
     avgConsumption: number
     price: number
+    emoji?: string
 }
 
 export interface Output {
     id: string
     productId: string
     productName?: string
+    product?: Product
     quantity: number
     reason: string
+    recipeId?: string | null
+    recipeName?: string
     date: string
     createdAt: string
 }
@@ -76,33 +80,120 @@ export interface Recipe {
     ingredients: RecipeIngredient[]
 }
 
-export interface ClinicMenu {
+// Menu types (nouvelle structure)
+export interface Menu {
     id: string
-    date: string
-    patientLunch: MealData
-    patientDinner: MealData
-    staffLunch: MealData
-    punctualOrders: PunctualOrder[]
-    notes: string
-}
-
-export interface MealData {
-    recipeId?: string
-    recipeName?: string
-    portions?: number
-}
-
-export interface PunctualOrder {
     name: string
-    quantity: number
+    menuDate: string
+    mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack' | null
+    notes: string | null
+    recipes: MenuRecipe[]
 }
 
-export interface Forecast {
+export interface MenuRecipe {
     id: string
-    date: string
-    patients: number
-    staff: number
+    recipeId: string
+    recipeName: string
+    servings: number
 }
+
+// =============================================
+// Staff & Planning Types
+// =============================================
+
+export interface Staff {
+    id: string
+    firstName: string
+    lastName: string
+    role: string
+    email: string
+    phone: string
+    color: string
+    avatarUrl?: string | null
+    contractHours: number
+    isActive: boolean
+    signatureData?: string | null
+    pinCode?: string | null
+    createdAt: string
+}
+
+export type ScheduleEventType =
+    | 'work'
+    | 'vacation'
+    | 'sick'
+    | 'overtime'
+    | 'training'
+    | 'holiday'
+    | 'unpaid_leave'
+    | 'recovery'
+
+export interface ScheduleEvent {
+    id: string
+    staffId: string
+    staffName: string
+    staffColor: string
+    eventType: ScheduleEventType
+    title?: string | null
+    startDate: string
+    endDate: string
+    startTime?: string | null
+    endTime?: string | null
+    hours: number
+    notes?: string | null
+    isValidated: boolean
+    validatedBy?: string | null
+    validatedAt?: string | null
+    createdAt: string
+}
+
+export interface UserProfile {
+    id: string
+    staffId?: string | null
+    staffName?: string | null
+    displayName: string
+    role: 'admin' | 'manager' | 'user'
+    avatarEmoji: string
+    lastLogin?: string | null
+    preferences: Record<string, unknown>
+    isActive: boolean
+    createdAt: string
+}
+
+// Event type display info
+export const EVENT_TYPES: Record<ScheduleEventType, { label: string; color: string; icon: string }> = {
+    work: { label: 'Travail', color: '#22C55E', icon: '💼' },
+    vacation: { label: 'Congés', color: '#3B82F6', icon: '🏖️' },
+    sick: { label: 'Maladie', color: '#EF4444', icon: '🤒' },
+    overtime: { label: 'Heures sup.', color: '#F59E0B', icon: '⏰' },
+    training: { label: 'Formation', color: '#8B5CF6', icon: '📚' },
+    holiday: { label: 'Férié', color: '#EC4899', icon: '🎉' },
+    unpaid_leave: { label: 'Sans solde', color: '#6B7280', icon: '📋' },
+    recovery: { label: 'Récupération', color: '#14B8A6', icon: '🔄' }
+}
+
+export const STAFF_ROLES = [
+    'Chef cuisinier',
+    'Cuisinier',
+    'Commis',
+    'Aide-cuisinier',
+    'Plongeur',
+    'Serveur',
+    'Responsable',
+    'Autre'
+] as const
+
+export const STAFF_COLORS = [
+    '#3B82F6', // Blue
+    '#22C55E', // Green
+    '#F59E0B', // Amber
+    '#EF4444', // Red
+    '#8B5CF6', // Purple
+    '#EC4899', // Pink
+    '#14B8A6', // Teal
+    '#F97316', // Orange
+    '#6366F1', // Indigo
+    '#84CC16', // Lime
+]
 
 // =============================================
 // Helper
@@ -182,11 +273,11 @@ export const api = {
                 id: p.id,
                 name: p.name,
                 category: p.category || '',
-                quantity: p.quantity,
+                quantity: Number(p.quantity) || 0,
                 unit: p.unit || 'kg',
-                minStock: p.minStock,
-                avgConsumption: p.avgConsumption || 0,
-                price: p.price
+                minStock: Number(p.min_stock) || 0,
+                avgConsumption: 0,
+                price: Number(p.price) || 0
             }))
         },
 
@@ -203,11 +294,11 @@ export const api = {
                 id: data.id,
                 name: data.name,
                 category: data.category || '',
-                quantity: data.quantity,
+                quantity: Number(data.quantity) || 0,
                 unit: data.unit || 'kg',
-                minStock: data.minStock,
-                avgConsumption: data.avgConsumption || 0,
-                price: data.price
+                minStock: Number(data.min_stock) || 0,
+                avgConsumption: 0,
+                price: Number(data.price) || 0
             }
         },
 
@@ -220,8 +311,7 @@ export const api = {
                     quantity: productData.quantity,
                     unit: productData.unit,
                     price: productData.price,
-                    minStock: productData.minStock,
-                    avgConsumption: productData.avgConsumption
+                    min_stock: productData.minStock
                 }])
                 .select()
                 .single()
@@ -232,11 +322,11 @@ export const api = {
                 id: data.id,
                 name: data.name,
                 category: data.category || '',
-                quantity: data.quantity,
+                quantity: Number(data.quantity) || 0,
                 unit: data.unit || 'kg',
-                minStock: data.minStock,
-                avgConsumption: data.avgConsumption || 0,
-                price: data.price
+                minStock: Number(data.min_stock) || 0,
+                avgConsumption: 0,
+                price: Number(data.price) || 0
             }
         },
 
@@ -249,8 +339,7 @@ export const api = {
                     quantity: productData.quantity,
                     unit: productData.unit,
                     price: productData.price,
-                    minStock: productData.minStock,
-                    avgConsumption: productData.avgConsumption
+                    min_stock: productData.minStock
                 })
                 .eq('id', id)
 
@@ -297,7 +386,7 @@ export const api = {
                     *,
                     products (name)
                 `)
-                .order('date', { ascending: false })
+                .order('output_date', { ascending: false })
                 .order('created_at', { ascending: false })
 
             if (error) throw error
@@ -305,24 +394,28 @@ export const api = {
             return (data || []).map(o => ({
                 id: o.id,
                 productId: o.product_id || '',
-                productName: o.products?.name || 'Produit supprimé',
-                quantity: o.quantity,
+                productName: (o.products as { name: string } | null)?.name || 'Produit supprimé',
+                quantity: Number(o.quantity) || 0,
                 reason: o.reason || 'Service midi',
-                date: o.date,
+                date: o.output_date,
                 createdAt: o.created_at
             }))
         },
 
         getByDateRange: async (from: string, to: string): Promise<Output[]> => {
+            // Add time to make the range inclusive of the full days
+            const fromDate = `${from}T00:00:00.000Z`
+            const toDate = `${to}T23:59:59.999Z`
+
             const { data, error } = await getSupabase()
                 .from('outputs')
                 .select(`
                     *,
                     products (name)
                 `)
-                .gte('date', from)
-                .lte('date', to)
-                .order('date', { ascending: false })
+                .gte('output_date', fromDate)
+                .lte('output_date', toDate)
+                .order('output_date', { ascending: false })
                 .order('created_at', { ascending: false })
 
             if (error) throw error
@@ -330,10 +423,10 @@ export const api = {
             return (data || []).map(o => ({
                 id: o.id,
                 productId: o.product_id || '',
-                productName: o.products?.name || 'Produit supprimé',
-                quantity: o.quantity,
+                productName: (o.products as { name: string } | null)?.name || 'Produit supprimé',
+                quantity: Number(o.quantity) || 0,
                 reason: o.reason || 'Service midi',
-                date: o.date,
+                date: o.output_date,
                 createdAt: o.created_at
             }))
         },
@@ -344,13 +437,32 @@ export const api = {
         },
 
         create: async (outputData: { productId: string; quantity: number; reason: string; date?: string }): Promise<Output> => {
-            const { data, error } = await getSupabase()
+            const supabaseClient = getSupabase()
+
+            // 1. Get current product stock
+            const { data: product, error: productError } = await supabaseClient
+                .from('products')
+                .select('quantity')
+                .eq('id', outputData.productId)
+                .single()
+
+            if (productError) throw productError
+
+            const currentStock = Number(product.quantity) || 0
+            const newStock = currentStock - outputData.quantity
+
+            if (newStock < 0) {
+                throw new Error('Stock insuffisant')
+            }
+
+            // 2. Create the output record
+            const { data, error } = await supabaseClient
                 .from('outputs')
                 .insert([{
                     product_id: outputData.productId,
                     quantity: outputData.quantity,
                     reason: outputData.reason,
-                    date: outputData.date || new Date().toISOString().split('T')[0]
+                    output_date: outputData.date || new Date().toISOString()
                 }])
                 .select(`
                     *,
@@ -360,19 +472,58 @@ export const api = {
 
             if (error) throw error
 
+            // 3. Update product stock
+            const { error: updateError } = await supabaseClient
+                .from('products')
+                .update({ quantity: newStock })
+                .eq('id', outputData.productId)
+
+            if (updateError) throw updateError
+
             return {
                 id: data.id,
                 productId: data.product_id || '',
-                productName: data.products?.name || '',
-                quantity: data.quantity,
+                productName: (data.products as { name: string } | null)?.name || '',
+                quantity: Number(data.quantity) || 0,
                 reason: data.reason || 'Service midi',
-                date: data.date,
+                date: data.output_date,
                 createdAt: data.created_at
             }
         },
 
         delete: async (id: string): Promise<void> => {
-            const { error } = await getSupabase()
+            const supabaseClient = getSupabase()
+
+            // 1. Get the output to restore stock
+            const { data: output, error: fetchError } = await supabaseClient
+                .from('outputs')
+                .select('product_id, quantity')
+                .eq('id', id)
+                .single()
+
+            if (fetchError) throw fetchError
+
+            // 2. Get current product stock
+            const { data: product, error: productError } = await supabaseClient
+                .from('products')
+                .select('quantity')
+                .eq('id', output.product_id)
+                .single()
+
+            if (productError) throw productError
+
+            // 3. Restore the stock
+            const restoredStock = Number(product.quantity) + Number(output.quantity)
+
+            const { error: updateError } = await supabaseClient
+                .from('products')
+                .update({ quantity: restoredStock })
+                .eq('id', output.product_id)
+
+            if (updateError) throw updateError
+
+            // 4. Delete the output record
+            const { error } = await supabaseClient
                 .from('outputs')
                 .delete()
                 .eq('id', id)
@@ -389,7 +540,6 @@ export const api = {
             const { data, error } = await getSupabase()
                 .from('suppliers')
                 .select('*')
-                .order('category')
                 .order('name')
 
             if (error) throw error
@@ -397,14 +547,14 @@ export const api = {
             return (data || []).map(s => ({
                 id: s.id,
                 name: s.name,
-                category: s.category || 'autre',
+                category: 'autre',
                 phone: s.phone || '',
                 email: s.email || '',
                 contact: s.contact || '',
                 notes: s.notes || '',
-                logoUrl: s.logo_url || '',
-                orderDays: s.order_days || [],
-                deliveryDays: s.delivery_days || []
+                logoUrl: '',
+                orderDays: [],
+                deliveryDays: []
             }))
         },
 
@@ -413,14 +563,10 @@ export const api = {
                 .from('suppliers')
                 .insert([{
                     name: supplierData.name,
-                    category: supplierData.category,
                     phone: supplierData.phone,
                     email: supplierData.email,
                     contact: supplierData.contact,
-                    notes: supplierData.notes,
-                    logo_url: supplierData.logoUrl,
-                    order_days: supplierData.orderDays,
-                    delivery_days: supplierData.deliveryDays
+                    notes: supplierData.notes
                 }])
                 .select()
                 .single()
@@ -430,14 +576,14 @@ export const api = {
             return {
                 id: data.id,
                 name: data.name,
-                category: data.category || 'autre',
+                category: 'autre',
                 phone: data.phone || '',
                 email: data.email || '',
                 contact: data.contact || '',
                 notes: data.notes || '',
-                logoUrl: data.logo_url || '',
-                orderDays: data.order_days || [],
-                deliveryDays: data.delivery_days || []
+                logoUrl: '',
+                orderDays: [],
+                deliveryDays: []
             }
         },
 
@@ -446,14 +592,10 @@ export const api = {
                 .from('suppliers')
                 .update({
                     name: supplierData.name,
-                    category: supplierData.category,
                     phone: supplierData.phone,
                     email: supplierData.email,
                     contact: supplierData.contact,
-                    notes: supplierData.notes,
-                    logo_url: supplierData.logoUrl,
-                    order_days: supplierData.orderDays,
-                    delivery_days: supplierData.deliveryDays
+                    notes: supplierData.notes
                 })
                 .eq('id', id)
 
@@ -481,80 +623,83 @@ export const api = {
     // =========================================
     deliveries: {
         getAll: async (): Promise<Delivery[]> => {
+            // Get deliveries with product and supplier info
             const { data, error } = await getSupabase()
                 .from('deliveries')
                 .select(`
                     *,
-                    delivery_items (
-                        id,
-                        product_id,
-                        product_name,
-                        quantity,
-                        price
-                    )
+                    products (name),
+                    suppliers (name)
                 `)
-                .order('date', { ascending: false })
+                .order('delivery_date', { ascending: false })
 
             if (error) throw error
 
             return (data || []).map(d => ({
                 id: d.id,
-                date: d.date,
+                date: d.delivery_date,
                 supplierId: d.supplier_id,
-                supplierName: d.supplier_name || '',
-                photoUrl: d.photo_url,
-                total: d.total,
-                items: (d.delivery_items || []).map((item: { id: string; product_id: string; product_name: string; quantity: number; price: number }) => ({
-                    id: item.id,
-                    productId: item.product_id,
-                    productName: item.product_name || '',
-                    quantity: item.quantity,
-                    price: item.price
-                })),
+                supplierName: (d.suppliers as { name: string } | null)?.name || '',
+                photoUrl: null,
+                total: Number(d.total_price) || 0,
+                items: [{
+                    id: d.id,
+                    productId: d.product_id,
+                    productName: (d.products as { name: string } | null)?.name || '',
+                    quantity: Number(d.quantity) || 0,
+                    price: Number(d.unit_price) || 0
+                }],
                 createdAt: d.created_at
             }))
         },
 
         create: async (deliveryData: { date: string; supplierName: string; supplierId?: string; photoUrl?: string; items: DeliveryItem[] }): Promise<Delivery> => {
-            const total = deliveryData.items.reduce((sum, item) => sum + (item.quantity * item.price), 0)
+            // The table structure has one delivery per product, so create multiple entries
+            const results: Delivery[] = []
 
-            const { data: delivery, error: deliveryError } = await getSupabase()
-                .from('deliveries')
-                .insert([{
-                    date: deliveryData.date,
-                    supplier_id: deliveryData.supplierId,
-                    supplier_name: deliveryData.supplierName,
-                    photo_url: deliveryData.photoUrl,
-                    total
-                }])
-                .select()
-                .single()
-
-            if (deliveryError) throw deliveryError
-
-            if (deliveryData.items.length > 0) {
-                const { error: itemsError } = await getSupabase()
-                    .from('delivery_items')
-                    .insert(deliveryData.items.map(item => ({
-                        delivery_id: delivery.id,
+            for (const item of deliveryData.items) {
+                const { data: delivery, error: deliveryError } = await getSupabase()
+                    .from('deliveries')
+                    .insert([{
                         product_id: item.productId,
-                        product_name: item.productName,
+                        supplier_id: deliveryData.supplierId || null,
                         quantity: item.quantity,
-                        price: item.price
-                    })))
+                        unit_price: item.price,
+                        total_price: item.quantity * item.price,
+                        delivery_date: deliveryData.date
+                    }])
+                    .select()
+                    .single()
 
-                if (itemsError) throw itemsError
+                if (deliveryError) throw deliveryError
+
+                results.push({
+                    id: delivery.id,
+                    date: delivery.delivery_date,
+                    supplierId: delivery.supplier_id,
+                    supplierName: deliveryData.supplierName,
+                    photoUrl: null,
+                    total: Number(delivery.total_price) || 0,
+                    items: [{
+                        id: delivery.id,
+                        productId: item.productId,
+                        productName: item.productName,
+                        quantity: Number(delivery.quantity) || 0,
+                        price: Number(delivery.unit_price) || 0
+                    }],
+                    createdAt: delivery.created_at
+                })
             }
 
-            return {
-                id: delivery.id,
-                date: delivery.date,
-                supplierId: delivery.supplier_id,
-                supplierName: delivery.supplier_name || '',
-                photoUrl: delivery.photo_url,
-                total: delivery.total,
-                items: deliveryData.items,
-                createdAt: delivery.created_at
+            return results[0] || {
+                id: '',
+                date: deliveryData.date,
+                supplierId: deliveryData.supplierId || null,
+                supplierName: deliveryData.supplierName,
+                photoUrl: null,
+                total: 0,
+                items: [],
+                createdAt: new Date().toISOString()
             }
         },
 
@@ -580,9 +725,9 @@ export const api = {
                     recipe_ingredients (
                         id,
                         product_id,
-                        product_name,
                         quantity,
-                        unit
+                        unit,
+                        products (name)
                     )
                 `)
                 .order('name')
@@ -592,15 +737,15 @@ export const api = {
             return (data || []).map(r => ({
                 id: r.id,
                 name: r.name,
-                portions: r.portions,
-                photoUrl: r.photo_url,
-                dietaryTags: r.dietary_tags || [],
+                portions: r.servings || 1,
+                photoUrl: null,
+                dietaryTags: [],
                 instructions: r.instructions || '',
-                ingredients: (r.recipe_ingredients || []).map((ing: { id: string; product_id: string; product_name: string; quantity: number; unit: string }) => ({
+                ingredients: (r.recipe_ingredients || []).map((ing: { id: string; product_id: string; quantity: number; unit: string; products: { name: string } | null }) => ({
                     id: ing.id,
                     productId: ing.product_id,
-                    productName: ing.product_name || '',
-                    quantity: ing.quantity,
+                    productName: ing.products?.name || '',
+                    quantity: Number(ing.quantity) || 0,
                     unit: ing.unit || ''
                 }))
             }))
@@ -611,9 +756,7 @@ export const api = {
                 .from('recipes')
                 .insert([{
                     name: recipeData.name,
-                    portions: recipeData.portions,
-                    photo_url: recipeData.photoUrl,
-                    dietary_tags: recipeData.dietaryTags,
+                    servings: recipeData.portions,
                     instructions: recipeData.instructions
                 }])
                 .select()
@@ -627,7 +770,6 @@ export const api = {
                     .insert(recipeData.ingredients.map(ing => ({
                         recipe_id: recipe.id,
                         product_id: ing.productId,
-                        product_name: ing.productName,
                         quantity: ing.quantity,
                         unit: ing.unit
                     })))
@@ -638,9 +780,9 @@ export const api = {
             return {
                 id: recipe.id,
                 name: recipe.name,
-                portions: recipe.portions,
-                photoUrl: recipe.photo_url,
-                dietaryTags: recipe.dietary_tags || [],
+                portions: recipe.servings || 1,
+                photoUrl: null,
+                dietaryTags: [],
                 instructions: recipe.instructions || '',
                 ingredients: recipeData.ingredients
             }
@@ -651,9 +793,7 @@ export const api = {
                 .from('recipes')
                 .update({
                     name: recipeData.name,
-                    portions: recipeData.portions,
-                    photo_url: recipeData.photoUrl,
-                    dietary_tags: recipeData.dietaryTags,
+                    servings: recipeData.portions,
                     instructions: recipeData.instructions
                 })
                 .eq('id', id)
@@ -672,7 +812,6 @@ export const api = {
                         .insert(recipeData.ingredients.map(ing => ({
                             recipe_id: id,
                             product_id: ing.productId,
-                            product_name: ing.productName,
                             quantity: ing.quantity,
                             unit: ing.unit
                         })))
@@ -693,101 +832,96 @@ export const api = {
     },
 
     // =========================================
-    // Clinic Menus
+    // Menus (nouvelle structure)
     // =========================================
-    clinicMenus: {
-        getByDate: async (date: string): Promise<ClinicMenu | null> => {
+    menus: {
+        getAll: async () => {
             const { data, error } = await getSupabase()
-                .from('clinic_menus')
-                .select('*')
-                .eq('date', date)
-                .maybeSingle()
+                .from('menus')
+                .select(`
+                    *,
+                    menu_recipes (
+                        id,
+                        recipe_id,
+                        servings,
+                        recipes (name)
+                    )
+                `)
+                .order('menu_date', { ascending: false })
 
             if (error) throw error
-            if (!data) return null
-
-            return {
-                id: data.id,
-                date: data.date,
-                patientLunch: (data.patient_lunch as unknown as MealData) || {},
-                patientDinner: (data.patient_dinner as unknown as MealData) || {},
-                staffLunch: (data.staff_lunch as unknown as MealData) || {},
-                punctualOrders: (data.punctual_orders as unknown as PunctualOrder[]) || [],
-                notes: data.notes || ''
-            }
+            return data || []
         },
 
-        save: async (menuData: Omit<ClinicMenu, 'id'> & { id?: string }): Promise<ClinicMenu> => {
+        getByDate: async (date: string) => {
             const { data, error } = await getSupabase()
-                .from('clinic_menus')
-                .upsert({
-                    id: menuData.id,
-                    date: menuData.date,
-                    patient_lunch: menuData.patientLunch as unknown as Json,
-                    patient_dinner: menuData.patientDinner as unknown as Json,
-                    staff_lunch: menuData.staffLunch as unknown as Json,
-                    punctual_orders: menuData.punctualOrders as unknown as Json,
-                    notes: menuData.notes
-                }, { onConflict: 'date' })
+                .from('menus')
+                .select(`
+                    *,
+                    menu_recipes (
+                        id,
+                        recipe_id,
+                        servings,
+                        recipes (name)
+                    )
+                `)
+                .eq('menu_date', date)
+
+            if (error) throw error
+            return data || []
+        },
+
+        create: async (menuData: { name: string; menu_date: string; meal_type?: string; notes?: string }) => {
+            const { data, error } = await getSupabase()
+                .from('menus')
+                .insert([menuData])
                 .select()
                 .single()
 
             if (error) throw error
-
-            return {
-                id: data.id,
-                date: data.date,
-                patientLunch: (data.patient_lunch as unknown as MealData) || {},
-                patientDinner: (data.patient_dinner as unknown as MealData) || {},
-                staffLunch: (data.staff_lunch as unknown as MealData) || {},
-                punctualOrders: (data.punctual_orders as unknown as PunctualOrder[]) || [],
-                notes: data.notes || ''
-            }
-        }
-    },
-
-    // =========================================
-    // Forecasts
-    // =========================================
-    forecasts: {
-        getByDate: async (date: string): Promise<Forecast | null> => {
-            const { data, error } = await getSupabase()
-                .from('forecasts')
-                .select('*')
-                .eq('date', date)
-                .maybeSingle()
-
-            if (error) throw error
-            if (!data) return null
-
-            return {
-                id: data.id,
-                date: data.date,
-                patients: data.patients,
-                staff: data.staff
-            }
+            return data
         },
 
-        save: async (forecastData: Omit<Forecast, 'id'> & { id?: string }): Promise<Forecast> => {
+        update: async (id: string, menuData: { name?: string; menu_date?: string; meal_type?: string; notes?: string }) => {
+            const { error } = await getSupabase()
+                .from('menus')
+                .update(menuData)
+                .eq('id', id)
+
+            if (error) throw error
+        },
+
+        delete: async (id: string) => {
+            const { error } = await getSupabase()
+                .from('menus')
+                .delete()
+                .eq('id', id)
+
+            if (error) throw error
+        },
+
+        addRecipe: async (menuId: string, recipeId: string, servings?: number) => {
             const { data, error } = await getSupabase()
-                .from('forecasts')
-                .upsert([{
-                    id: forecastData.id,
-                    date: forecastData.date,
-                    patients: forecastData.patients,
-                    staff: forecastData.staff
-                }], { onConflict: 'date' })
+                .from('menu_recipes')
+                .insert([{
+                    menu_id: menuId,
+                    recipe_id: recipeId,
+                    servings: servings || 1
+                }])
                 .select()
                 .single()
 
             if (error) throw error
+            return data
+        },
 
-            return {
-                id: data.id,
-                date: data.date,
-                patients: data.patients,
-                staff: data.staff
-            }
+        removeRecipe: async (menuRecipeId: string) => {
+            const { error } = await getSupabase()
+                .from('menu_recipes')
+                .delete()
+                .eq('id', menuRecipeId)
+
+            if (error) throw error
         }
     },
 
@@ -835,6 +969,659 @@ export const api = {
                 categoryStats,
                 topConsumption: topConsumptionArray
             }
+        }
+    },
+
+    // =========================================
+    // Temperature Equipment
+    // =========================================
+    temperatureEquipment: {
+        getAll: async () => {
+            const { data, error } = await getSupabase()
+                .from('temperature_equipment')
+                .select('*')
+                .order('name')
+
+            if (error) throw error
+            return data || []
+        },
+
+        getById: async (id: string) => {
+            const { data, error } = await getSupabase()
+                .from('temperature_equipment')
+                .select('*')
+                .eq('id', id)
+                .single()
+
+            if (error) throw error
+            return data
+        },
+
+        create: async (equipmentData: {
+            name: string
+            type: 'fridge' | 'freezer' | 'cold_room'
+            location?: string
+            min_temp?: number
+            max_temp?: number
+        }) => {
+            const { data, error } = await getSupabase()
+                .from('temperature_equipment')
+                .insert([equipmentData])
+                .select()
+                .single()
+
+            if (error) throw error
+            return data
+        },
+
+        update: async (id: string, equipmentData: {
+            name?: string
+            type?: 'fridge' | 'freezer' | 'cold_room'
+            location?: string
+            min_temp?: number
+            max_temp?: number
+            is_active?: boolean
+        }) => {
+            const { error } = await getSupabase()
+                .from('temperature_equipment')
+                .update(equipmentData)
+                .eq('id', id)
+
+            if (error) throw error
+        },
+
+        delete: async (id: string) => {
+            const { error } = await getSupabase()
+                .from('temperature_equipment')
+                .delete()
+                .eq('id', id)
+
+            if (error) throw error
+        }
+    },
+
+    // =========================================
+    // Temperature Readings
+    // =========================================
+    temperatureReadings: {
+        getByEquipment: async (equipmentId: string, limit = 50) => {
+            const { data, error } = await getSupabase()
+                .from('temperature_readings')
+                .select('*')
+                .eq('equipment_id', equipmentId)
+                .order('recorded_at', { ascending: false })
+                .limit(limit)
+
+            if (error) throw error
+            return data || []
+        },
+
+        getLatest: async (equipmentId: string) => {
+            const { data, error } = await getSupabase()
+                .from('temperature_readings')
+                .select('*')
+                .eq('equipment_id', equipmentId)
+                .order('recorded_at', { ascending: false })
+                .limit(1)
+                .maybeSingle()
+
+            if (error) throw error
+            return data
+        },
+
+        create: async (readingData: {
+            equipment_id: string
+            temperature: number
+            is_compliant?: boolean
+            recorded_by?: string
+            notes?: string | null
+        }) => {
+            const { data, error } = await getSupabase()
+                .from('temperature_readings')
+                .insert([readingData])
+                .select()
+                .single()
+
+            if (error) throw error
+            return data
+        },
+
+        getByDateRange: async (from: string, to: string) => {
+            const { data, error } = await getSupabase()
+                .from('temperature_readings')
+                .select(`
+                    *,
+                    temperature_equipment (name, type)
+                `)
+                .gte('recorded_at', from)
+                .lte('recorded_at', to)
+                .order('recorded_at', { ascending: false })
+
+            if (error) throw error
+            return data || []
+        }
+    },
+
+    // =========================================
+    // Traceability Photos
+    // =========================================
+    traceabilityPhotos: {
+        upload: async (file: File, outputId: string, notes?: string) => {
+            const supabaseClient = getSupabase()
+            const timestamp = Date.now()
+            const extension = file.name.split('.').pop() || 'jpg'
+            const storagePath = `${outputId}/${timestamp}.${extension}`
+
+            // Upload to storage
+            const { error: uploadError } = await supabaseClient.storage
+                .from('traceability-photos')
+                .upload(storagePath, file)
+
+            if (uploadError) throw uploadError
+
+            // Get public URL
+            const { data: urlData } = supabaseClient.storage
+                .from('traceability-photos')
+                .getPublicUrl(storagePath)
+
+            // Create record
+            const { data, error } = await supabaseClient
+                .from('traceability_photos')
+                .insert([{
+                    output_id: outputId,
+                    storage_path: storagePath,
+                    url: urlData.publicUrl,
+                    notes: notes || null
+                }])
+                .select()
+                .single()
+
+            if (error) throw error
+            return data
+        },
+
+        getByOutput: async (outputId: string) => {
+            const { data, error } = await getSupabase()
+                .from('traceability_photos')
+                .select('*')
+                .eq('output_id', outputId)
+                .order('captured_at', { ascending: false })
+
+            if (error) throw error
+            return data || []
+        },
+
+        getByDateRange: async (from: string, to: string) => {
+            const { data, error } = await getSupabase()
+                .from('traceability_photos')
+                .select(`
+                    *,
+                    outputs (
+                        id,
+                        product_id,
+                        quantity,
+                        products (name, category)
+                    )
+                `)
+                .gte('captured_at', from)
+                .lte('captured_at', to)
+                .order('captured_at', { ascending: false })
+
+            if (error) throw error
+            return data || []
+        },
+
+        delete: async (id: string) => {
+            // Get the photo record first
+            const { data: photo, error: fetchError } = await getSupabase()
+                .from('traceability_photos')
+                .select('storage_path')
+                .eq('id', id)
+                .single()
+
+            if (fetchError) throw fetchError
+
+            // Delete from storage
+            if (photo?.storage_path) {
+                await getSupabase().storage
+                    .from('traceability-photos')
+                    .remove([photo.storage_path])
+            }
+
+            // Delete record
+            const { error } = await getSupabase()
+                .from('traceability_photos')
+                .delete()
+                .eq('id', id)
+
+            if (error) throw error
+        }
+    },
+
+    // =========================================
+    // Staff (Collaborateurs)
+    // =========================================
+    staff: {
+        getAll: async (): Promise<Staff[]> => {
+            const { data, error } = await getSupabase()
+                .from('staff')
+                .select('*')
+                .order('last_name')
+
+            if (error) throw error
+            return (data || []).map(s => ({
+                id: s.id,
+                firstName: s.first_name,
+                lastName: s.last_name,
+                role: s.role,
+                email: s.email || '',
+                phone: s.phone || '',
+                color: s.color || '#3B82F6',
+                avatarUrl: s.avatar_url,
+                contractHours: Number(s.contract_hours) || 35,
+                isActive: s.is_active,
+                signatureData: s.signature_data,
+                pinCode: s.pin_code,
+                createdAt: s.created_at
+            }))
+        },
+
+        getById: async (id: string): Promise<Staff> => {
+            const { data, error } = await getSupabase()
+                .from('staff')
+                .select('*')
+                .eq('id', id)
+                .single()
+
+            if (error) throw error
+            return {
+                id: data.id,
+                firstName: data.first_name,
+                lastName: data.last_name,
+                role: data.role,
+                email: data.email || '',
+                phone: data.phone || '',
+                color: data.color || '#3B82F6',
+                avatarUrl: data.avatar_url,
+                contractHours: Number(data.contract_hours) || 35,
+                isActive: data.is_active,
+                signatureData: data.signature_data,
+                pinCode: data.pin_code,
+                createdAt: data.created_at
+            }
+        },
+
+        create: async (staffData: Omit<Staff, 'id' | 'createdAt'>): Promise<Staff> => {
+            const { data, error } = await getSupabase()
+                .from('staff')
+                .insert([{
+                    first_name: staffData.firstName,
+                    last_name: staffData.lastName,
+                    role: staffData.role,
+                    email: staffData.email || null,
+                    phone: staffData.phone || null,
+                    color: staffData.color,
+                    contract_hours: staffData.contractHours,
+                    signature_data: staffData.signatureData || null,
+                    pin_code: staffData.pinCode || null
+                }])
+                .select()
+                .single()
+
+            if (error) throw error
+            return {
+                id: data.id,
+                firstName: data.first_name,
+                lastName: data.last_name,
+                role: data.role,
+                email: data.email || '',
+                phone: data.phone || '',
+                color: data.color || '#3B82F6',
+                avatarUrl: data.avatar_url,
+                contractHours: Number(data.contract_hours) || 35,
+                isActive: data.is_active,
+                signatureData: data.signature_data,
+                pinCode: data.pin_code,
+                createdAt: data.created_at
+            }
+        },
+
+        update: async (id: string, staffData: Partial<Staff>): Promise<void> => {
+            const updateData: Record<string, unknown> = {}
+            if (staffData.firstName !== undefined) updateData.first_name = staffData.firstName
+            if (staffData.lastName !== undefined) updateData.last_name = staffData.lastName
+            if (staffData.role !== undefined) updateData.role = staffData.role
+            if (staffData.email !== undefined) updateData.email = staffData.email || null
+            if (staffData.phone !== undefined) updateData.phone = staffData.phone || null
+            if (staffData.color !== undefined) updateData.color = staffData.color
+            if (staffData.contractHours !== undefined) updateData.contract_hours = staffData.contractHours
+            if (staffData.isActive !== undefined) updateData.is_active = staffData.isActive
+            if (staffData.signatureData !== undefined) updateData.signature_data = staffData.signatureData
+            if (staffData.pinCode !== undefined) updateData.pin_code = staffData.pinCode
+
+            const { error } = await getSupabase()
+                .from('staff')
+                .update(updateData)
+                .eq('id', id)
+
+            if (error) throw error
+        },
+
+        delete: async (id: string): Promise<void> => {
+            const { error } = await getSupabase()
+                .from('staff')
+                .delete()
+                .eq('id', id)
+
+            if (error) throw error
+        }
+    },
+
+    // =========================================
+    // Schedule Events (Planning)
+    // =========================================
+    scheduleEvents: {
+        getAll: async (): Promise<ScheduleEvent[]> => {
+            const { data, error } = await getSupabase()
+                .from('schedule_events')
+                .select(`
+                    *,
+                    staff!schedule_events_staff_id_fkey (first_name, last_name, color)
+                `)
+                .order('start_date', { ascending: false })
+
+            if (error) throw error
+            return (data || []).map(e => {
+                const staffData = e.staff as { first_name: string; last_name: string; color: string } | null
+                return {
+                    id: e.id,
+                    staffId: e.staff_id,
+                    staffName: staffData ? `${staffData.first_name} ${staffData.last_name}` : '',
+                    staffColor: staffData?.color || '#3B82F6',
+                    eventType: e.event_type as ScheduleEventType,
+                    title: e.title,
+                    startDate: e.start_date,
+                    endDate: e.end_date,
+                    startTime: e.start_time,
+                    endTime: e.end_time,
+                    hours: Number(e.hours) || 0,
+                    notes: e.notes,
+                    isValidated: e.is_validated ?? false,
+                    validatedBy: e.validated_by,
+                    validatedAt: e.validated_at,
+                    createdAt: e.created_at ?? ''
+                }
+            })
+        },
+
+        getByDateRange: async (from: string, to: string): Promise<ScheduleEvent[]> => {
+            const { data, error } = await getSupabase()
+                .from('schedule_events')
+                .select(`
+                    *,
+                    staff!schedule_events_staff_id_fkey (first_name, last_name, color)
+                `)
+                .or(`start_date.gte.${from},end_date.lte.${to}`)
+                .or(`start_date.lte.${to},end_date.gte.${from}`)
+                .order('start_date')
+
+            if (error) throw error
+            return (data || []).map(e => {
+                const staffData = e.staff as { first_name: string; last_name: string; color: string } | null
+                return {
+                    id: e.id,
+                    staffId: e.staff_id,
+                    staffName: staffData ? `${staffData.first_name} ${staffData.last_name}` : '',
+                    staffColor: staffData?.color || '#3B82F6',
+                    eventType: e.event_type as ScheduleEventType,
+                    title: e.title,
+                    startDate: e.start_date,
+                    endDate: e.end_date,
+                    startTime: e.start_time,
+                    endTime: e.end_time,
+                    hours: Number(e.hours) || 0,
+                    notes: e.notes,
+                    isValidated: e.is_validated ?? false,
+                    validatedBy: e.validated_by,
+                    validatedAt: e.validated_at,
+                    createdAt: e.created_at ?? ''
+                }
+            })
+        },
+
+        getByStaff: async (staffId: string): Promise<ScheduleEvent[]> => {
+            const { data, error } = await getSupabase()
+                .from('schedule_events')
+                .select('*')
+                .eq('staff_id', staffId)
+                .order('start_date', { ascending: false })
+
+            if (error) throw error
+            return (data || []).map(e => ({
+                id: e.id,
+                staffId: e.staff_id,
+                staffName: '',
+                staffColor: '#3B82F6',
+                eventType: e.event_type as ScheduleEventType,
+                title: e.title,
+                startDate: e.start_date,
+                endDate: e.end_date,
+                startTime: e.start_time,
+                endTime: e.end_time,
+                hours: Number(e.hours) || 0,
+                notes: e.notes,
+                isValidated: e.is_validated ?? false,
+                validatedBy: e.validated_by,
+                validatedAt: e.validated_at,
+                createdAt: e.created_at ?? ''
+            }))
+        },
+
+        create: async (eventData: Omit<ScheduleEvent, 'id' | 'staffName' | 'staffColor' | 'createdAt'>): Promise<ScheduleEvent> => {
+            const { data, error } = await getSupabase()
+                .from('schedule_events')
+                .insert([{
+                    staff_id: eventData.staffId,
+                    event_type: eventData.eventType,
+                    title: eventData.title || null,
+                    start_date: eventData.startDate,
+                    end_date: eventData.endDate,
+                    start_time: eventData.startTime || null,
+                    end_time: eventData.endTime || null,
+                    hours: eventData.hours || null,
+                    notes: eventData.notes || null,
+                    is_validated: eventData.isValidated || false
+                }])
+                .select(`
+                    *,
+                    staff!schedule_events_staff_id_fkey (first_name, last_name, color)
+                `)
+                .single()
+
+            if (error) throw error
+            const staffData = data.staff as { first_name: string; last_name: string; color: string } | null
+            return {
+                id: data.id,
+                staffId: data.staff_id,
+                staffName: staffData ? `${staffData.first_name} ${staffData.last_name}` : '',
+                staffColor: staffData?.color || '#3B82F6',
+                eventType: data.event_type as ScheduleEventType,
+                title: data.title,
+                startDate: data.start_date,
+                endDate: data.end_date,
+                startTime: data.start_time,
+                endTime: data.end_time,
+                hours: Number(data.hours) || 0,
+                notes: data.notes,
+                isValidated: data.is_validated ?? false,
+                validatedBy: data.validated_by,
+                validatedAt: data.validated_at,
+                createdAt: data.created_at ?? ''
+            }
+        },
+
+        update: async (id: string, eventData: Partial<ScheduleEvent>): Promise<void> => {
+            const updateData: Record<string, unknown> = {}
+            if (eventData.staffId !== undefined) updateData.staff_id = eventData.staffId
+            if (eventData.eventType !== undefined) updateData.event_type = eventData.eventType
+            if (eventData.title !== undefined) updateData.title = eventData.title
+            if (eventData.startDate !== undefined) updateData.start_date = eventData.startDate
+            if (eventData.endDate !== undefined) updateData.end_date = eventData.endDate
+            if (eventData.startTime !== undefined) updateData.start_time = eventData.startTime
+            if (eventData.endTime !== undefined) updateData.end_time = eventData.endTime
+            if (eventData.hours !== undefined) updateData.hours = eventData.hours
+            if (eventData.notes !== undefined) updateData.notes = eventData.notes
+            if (eventData.isValidated !== undefined) updateData.is_validated = eventData.isValidated
+
+            const { error } = await getSupabase()
+                .from('schedule_events')
+                .update(updateData)
+                .eq('id', id)
+
+            if (error) throw error
+        },
+
+        delete: async (id: string): Promise<void> => {
+            const { error } = await getSupabase()
+                .from('schedule_events')
+                .delete()
+                .eq('id', id)
+
+            if (error) throw error
+        },
+
+        validate: async (id: string, validatedBy: string): Promise<void> => {
+            const { error } = await getSupabase()
+                .from('schedule_events')
+                .update({
+                    is_validated: true,
+                    validated_by: validatedBy,
+                    validated_at: new Date().toISOString()
+                })
+                .eq('id', id)
+
+            if (error) throw error
+        }
+    },
+
+    // =========================================
+    // User Profiles
+    // =========================================
+    userProfiles: {
+        getAll: async (): Promise<UserProfile[]> => {
+            const { data, error } = await getSupabase()
+                .from('user_profiles')
+                .select(`
+                    *,
+                    staff!user_profiles_staff_id_fkey (first_name, last_name)
+                `)
+                .order('display_name')
+
+            if (error) throw error
+            return (data || []).map(p => {
+                const staffData = p.staff as { first_name: string; last_name: string } | null
+                return {
+                    id: p.id,
+                    staffId: p.staff_id,
+                    staffName: staffData ? `${staffData.first_name} ${staffData.last_name}` : null,
+                    displayName: p.display_name,
+                    role: p.role as 'admin' | 'manager' | 'user',
+                    avatarEmoji: p.avatar_emoji || '👤',
+                    lastLogin: p.last_login,
+                    preferences: (p.preferences as Record<string, unknown>) || {},
+                    isActive: p.is_active ?? true,
+                    createdAt: p.created_at ?? ''
+                }
+            })
+        },
+
+        getById: async (id: string): Promise<UserProfile> => {
+            const { data, error } = await getSupabase()
+                .from('user_profiles')
+                .select(`
+                    *,
+                    staff!user_profiles_staff_id_fkey (first_name, last_name)
+                `)
+                .eq('id', id)
+                .single()
+
+            if (error) throw error
+            const staffData = data.staff as { first_name: string; last_name: string } | null
+            return {
+                id: data.id,
+                staffId: data.staff_id,
+                staffName: staffData ? `${staffData.first_name} ${staffData.last_name}` : null,
+                displayName: data.display_name,
+                role: data.role as 'admin' | 'manager' | 'user',
+                avatarEmoji: data.avatar_emoji || '👤',
+                lastLogin: data.last_login,
+                preferences: (data.preferences as Record<string, unknown>) || {},
+                isActive: data.is_active ?? true,
+                createdAt: data.created_at ?? ''
+            }
+        },
+
+        create: async (profileData: Omit<UserProfile, 'id' | 'staffName' | 'createdAt'>): Promise<UserProfile> => {
+            const { data, error } = await getSupabase()
+                .from('user_profiles')
+                .insert([{
+                    staff_id: profileData.staffId || null,
+                    display_name: profileData.displayName,
+                    role: profileData.role,
+                    avatar_emoji: profileData.avatarEmoji,
+                    preferences: profileData.preferences as Json || {}
+                }])
+                .select()
+                .single()
+
+            if (error) throw error
+            return {
+                id: data.id,
+                staffId: data.staff_id,
+                staffName: null,
+                displayName: data.display_name,
+                role: data.role as 'admin' | 'manager' | 'user',
+                avatarEmoji: data.avatar_emoji || '👤',
+                lastLogin: data.last_login,
+                preferences: (data.preferences as Record<string, unknown>) || {},
+                isActive: data.is_active ?? true,
+                createdAt: data.created_at ?? ''
+            }
+        },
+
+        update: async (id: string, profileData: Partial<UserProfile>): Promise<void> => {
+            const updateData: Record<string, unknown> = {}
+            if (profileData.staffId !== undefined) updateData.staff_id = profileData.staffId
+            if (profileData.displayName !== undefined) updateData.display_name = profileData.displayName
+            if (profileData.role !== undefined) updateData.role = profileData.role
+            if (profileData.avatarEmoji !== undefined) updateData.avatar_emoji = profileData.avatarEmoji
+            if (profileData.preferences !== undefined) updateData.preferences = profileData.preferences
+            if (profileData.isActive !== undefined) updateData.is_active = profileData.isActive
+
+            const { error } = await getSupabase()
+                .from('user_profiles')
+                .update(updateData)
+                .eq('id', id)
+
+            if (error) throw error
+        },
+
+        delete: async (id: string): Promise<void> => {
+            const { error } = await getSupabase()
+                .from('user_profiles')
+                .delete()
+                .eq('id', id)
+
+            if (error) throw error
+        },
+
+        updateLastLogin: async (id: string): Promise<void> => {
+            const { error } = await getSupabase()
+                .from('user_profiles')
+                .update({ last_login: new Date().toISOString() })
+                .eq('id', id)
+
+            if (error) throw error
         }
     }
 }
