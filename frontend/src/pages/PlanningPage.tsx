@@ -477,17 +477,45 @@ export function PlanningPage() {
                         )
 
                         if (!hasEvent) {
-                            // Créer un événement par défaut
-                            // On met un horaire standard 8h-16h (8h) pour l'instant
+                            // Déterminer les horaires selon le rôle
+                            let startTime = '08:00'
+                            let endTime = '16:00'
+                            let hours = 8
+                            let notes = 'Auto-généré'
+
+                            const role = (staff.role || '').toLowerCase()
+
+                            // Cuisiniers : 7h-19h (10h travail effectif, 2h pause)
+                            if (role.includes('cuisinier') || role.includes('chef') || role.includes('second') || role.includes('commis')) {
+                                startTime = '07:00'
+                                endTime = '19:00'
+                                hours = 10
+                                notes = '07h-19h (2h pause)'
+                            }
+                            // Plongeurs : 8h30-20h30 (10h travail effectif, 2h pause)
+                            else if (role.includes('plongeur')) {
+                                startTime = '08:30'
+                                endTime = '20:30'
+                                hours = 10
+                                notes = '08h30-20h30 (2h pause)'
+                            }
+                            // Gérant : 7h-15h30
+                            else if (role.includes('gérant') || role.includes('gerant') || role.includes('manager')) {
+                                startTime = '07:00'
+                                endTime = '15:30'
+                                hours = 8.5
+                                notes = '07h-15h30'
+                            }
+
                             newEvents.push(api.scheduleEvents.create({
                                 staffId: staff.id,
                                 startDate: formatDate(date),
                                 endDate: formatDate(date),
-                                startTime: '08:00',
-                                endTime: '16:00',
+                                startTime,
+                                endTime,
                                 eventType: 'work',
-                                hours: 8,
-                                notes: 'Auto-généré',
+                                hours,
+                                notes,
                                 isValidated: false
                             }))
                             createdCount++
