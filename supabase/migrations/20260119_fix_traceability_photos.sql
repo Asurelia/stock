@@ -43,5 +43,15 @@ CREATE INDEX IF NOT EXISTS idx_traceability_captured_at ON traceability_photos(c
 DROP INDEX IF EXISTS idx_traceability_product_date;
 
 -- =============================================
+-- Ajouter le champ requires_traceability_photo aux produits
+-- Permet de choisir manuellement quels produits nécessitent une photo
+-- =============================================
+ALTER TABLE products 
+ADD COLUMN IF NOT EXISTS requires_traceability_photo BOOLEAN DEFAULT TRUE;
+
+COMMENT ON COLUMN products.requires_traceability_photo IS 
+'Indique si le produit nécessite une photo de traçabilité (TRUE par défaut)';
+
+-- =============================================
 -- FIN DE LA MIGRATION
 -- =============================================

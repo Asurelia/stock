@@ -15,6 +15,7 @@ export interface Product {
     avgConsumption: number
     price: number
     emoji?: string
+    requiresTraceabilityPhoto: boolean
 }
 
 export interface Output {
@@ -291,16 +292,21 @@ export const api = {
 
             if (error) throw error
 
-            return (data || []).map(p => ({
-                id: p.id,
-                name: p.name,
-                category: p.category || '',
-                quantity: Number(p.quantity) || 0,
-                unit: p.unit || 'kg',
-                minStock: Number(p.min_stock) || 0,
-                avgConsumption: 0,
-                price: Number(p.price) || 0
-            }))
+            return (data || []).map(p => {
+                const rec = p as Record<string, unknown>
+                return {
+                    id: p.id,
+                    name: p.name,
+                    category: p.category || '',
+                    quantity: Number(p.quantity) || 0,
+                    unit: p.unit || 'kg',
+                    minStock: Number(p.min_stock) || 0,
+                    avgConsumption: 0,
+                    price: Number(p.price) || 0,
+                    emoji: p.emoji || undefined,
+                    requiresTraceabilityPhoto: rec.requires_traceability_photo !== false
+                }
+            })
         },
 
         getById: async (id: string): Promise<Product> => {
@@ -312,6 +318,7 @@ export const api = {
 
             if (error) throw error
 
+            const rec = data as Record<string, unknown>
             return {
                 id: data.id,
                 name: data.name,
@@ -320,7 +327,9 @@ export const api = {
                 unit: data.unit || 'kg',
                 minStock: Number(data.min_stock) || 0,
                 avgConsumption: 0,
-                price: Number(data.price) || 0
+                price: Number(data.price) || 0,
+                emoji: data.emoji || undefined,
+                requiresTraceabilityPhoto: rec.requires_traceability_photo !== false
             }
         },
 
@@ -333,13 +342,16 @@ export const api = {
                     quantity: productData.quantity,
                     unit: productData.unit,
                     price: productData.price,
-                    min_stock: productData.minStock
+                    min_stock: productData.minStock,
+                    emoji: productData.emoji || null,
+                    requires_traceability_photo: productData.requiresTraceabilityPhoto !== false
                 }])
                 .select()
                 .single()
 
             if (error) throw error
 
+            const rec = data as Record<string, unknown>
             return {
                 id: data.id,
                 name: data.name,
@@ -348,7 +360,9 @@ export const api = {
                 unit: data.unit || 'kg',
                 minStock: Number(data.min_stock) || 0,
                 avgConsumption: 0,
-                price: Number(data.price) || 0
+                price: Number(data.price) || 0,
+                emoji: data.emoji || undefined,
+                requiresTraceabilityPhoto: rec.requires_traceability_photo !== false
             }
         },
 
@@ -361,7 +375,9 @@ export const api = {
                     quantity: productData.quantity,
                     unit: productData.unit,
                     price: productData.price,
-                    min_stock: productData.minStock
+                    min_stock: productData.minStock,
+                    emoji: productData.emoji,
+                    requires_traceability_photo: productData.requiresTraceabilityPhoto
                 })
                 .eq('id', id)
 
