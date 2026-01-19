@@ -102,6 +102,7 @@ export interface MenuRecipe {
 // =============================================
 
 export type StaffGroup = 'week1' | 'week2' | 'manager'
+export type WorkDay = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
 
 export interface Staff {
     id: string
@@ -117,6 +118,8 @@ export interface Staff {
     signatureData?: string | null
     pinCode?: string | null
     staffGroup: StaffGroup
+    workDaysWeek1: WorkDay[]
+    workDaysWeek2: WorkDay[]
     createdAt: string
 }
 
@@ -125,6 +128,16 @@ export const STAFF_GROUPS: Record<StaffGroup, { label: string; color: string; ic
     week2: { label: 'Semaine 2', color: '#22C55E', icon: '2️⃣' },
     manager: { label: 'Chef Gérant', color: '#F59E0B', icon: '👨‍🍳' }
 }
+
+export const WEEK_DAYS: { key: WorkDay; label: string; short: string }[] = [
+    { key: 'mon', label: 'Lundi', short: 'L' },
+    { key: 'tue', label: 'Mardi', short: 'M' },
+    { key: 'wed', label: 'Mercredi', short: 'M' },
+    { key: 'thu', label: 'Jeudi', short: 'J' },
+    { key: 'fri', label: 'Vendredi', short: 'V' },
+    { key: 'sat', label: 'Samedi', short: 'S' },
+    { key: 'sun', label: 'Dimanche', short: 'D' }
+]
 
 export type ScheduleEventType =
     | 'work'
@@ -1218,22 +1231,27 @@ export const api = {
                 .order('last_name')
 
             if (error) throw error
-            return (data || []).map(s => ({
-                id: s.id,
-                firstName: s.first_name,
-                lastName: s.last_name,
-                role: s.role,
-                email: s.email || '',
-                phone: s.phone || '',
-                color: s.color || '#3B82F6',
-                avatarUrl: s.avatar_url,
-                contractHours: Number(s.contract_hours) || 35,
-                isActive: s.is_active,
-                signatureData: s.signature_data,
-                pinCode: s.pin_code,
-                staffGroup: ((s as Record<string, unknown>).staff_group as StaffGroup) || 'week1',
-                createdAt: s.created_at
-            }))
+            return (data || []).map(s => {
+                const rec = s as Record<string, unknown>
+                return {
+                    id: s.id,
+                    firstName: s.first_name,
+                    lastName: s.last_name,
+                    role: s.role,
+                    email: s.email || '',
+                    phone: s.phone || '',
+                    color: s.color || '#3B82F6',
+                    avatarUrl: s.avatar_url,
+                    contractHours: Number(s.contract_hours) || 35,
+                    isActive: s.is_active,
+                    signatureData: s.signature_data,
+                    pinCode: s.pin_code,
+                    staffGroup: (rec.staff_group as StaffGroup) || 'week1',
+                    workDaysWeek1: (rec.work_days_week1 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
+                    workDaysWeek2: (rec.work_days_week2 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
+                    createdAt: s.created_at
+                }
+            })
         },
 
         getById: async (id: string): Promise<Staff> => {
@@ -1244,6 +1262,7 @@ export const api = {
                 .single()
 
             if (error) throw error
+            const rec = data as Record<string, unknown>
             return {
                 id: data.id,
                 firstName: data.first_name,
@@ -1257,7 +1276,9 @@ export const api = {
                 isActive: data.is_active,
                 signatureData: data.signature_data,
                 pinCode: data.pin_code,
-                staffGroup: ((data as Record<string, unknown>).staff_group as StaffGroup) || 'week1',
+                staffGroup: (rec.staff_group as StaffGroup) || 'week1',
+                workDaysWeek1: (rec.work_days_week1 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
+                workDaysWeek2: (rec.work_days_week2 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
                 createdAt: data.created_at
             }
         },
@@ -1275,12 +1296,15 @@ export const api = {
                     contract_hours: staffData.contractHours,
                     signature_data: staffData.signatureData || null,
                     pin_code: staffData.pinCode || null,
-                    staff_group: staffData.staffGroup || 'week1'
+                    staff_group: staffData.staffGroup || 'week1',
+                    work_days_week1: staffData.workDaysWeek1 || ['mon', 'tue', 'wed', 'thu', 'fri'],
+                    work_days_week2: staffData.workDaysWeek2 || ['mon', 'tue', 'wed', 'thu', 'fri']
                 }])
                 .select()
                 .single()
 
             if (error) throw error
+            const rec = data as Record<string, unknown>
             return {
                 id: data.id,
                 firstName: data.first_name,
@@ -1294,7 +1318,9 @@ export const api = {
                 isActive: data.is_active,
                 signatureData: data.signature_data,
                 pinCode: data.pin_code,
-                staffGroup: ((data as Record<string, unknown>).staff_group as StaffGroup) || 'week1',
+                staffGroup: (rec.staff_group as StaffGroup) || 'week1',
+                workDaysWeek1: (rec.work_days_week1 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
+                workDaysWeek2: (rec.work_days_week2 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
                 createdAt: data.created_at
             }
         },
@@ -1312,6 +1338,8 @@ export const api = {
             if (staffData.signatureData !== undefined) updateData.signature_data = staffData.signatureData
             if (staffData.pinCode !== undefined) updateData.pin_code = staffData.pinCode
             if (staffData.staffGroup !== undefined) updateData.staff_group = staffData.staffGroup
+            if (staffData.workDaysWeek1 !== undefined) updateData.work_days_week1 = staffData.workDaysWeek1
+            if (staffData.workDaysWeek2 !== undefined) updateData.work_days_week2 = staffData.workDaysWeek2
 
             const { error } = await getSupabase()
                 .from('staff')

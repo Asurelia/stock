@@ -6,10 +6,12 @@ import {
     type ScheduleEvent,
     type ScheduleEventType,
     type StaffGroup,
+    type WorkDay,
     EVENT_TYPES,
     STAFF_ROLES,
     STAFF_COLORS,
-    STAFF_GROUPS
+    STAFF_GROUPS,
+    WEEK_DAYS
 } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -86,7 +88,9 @@ export function PlanningPage() {
         phone: '',
         color: STAFF_COLORS[0],
         contractHours: 35,
-        staffGroup: 'week1' as StaffGroup
+        staffGroup: 'week1' as StaffGroup,
+        workDaysWeek1: ['mon', 'tue', 'wed', 'thu', 'fri'] as WorkDay[],
+        workDaysWeek2: ['mon', 'tue', 'wed', 'thu', 'fri'] as WorkDay[]
     })
 
     // Event dialog
@@ -206,7 +210,9 @@ export function PlanningPage() {
             phone: '',
             color: STAFF_COLORS[0],
             contractHours: 35,
-            staffGroup: 'week1' as StaffGroup
+            staffGroup: 'week1' as StaffGroup,
+            workDaysWeek1: ['mon', 'tue', 'wed', 'thu', 'fri'] as WorkDay[],
+            workDaysWeek2: ['mon', 'tue', 'wed', 'thu', 'fri'] as WorkDay[]
         })
     }
 
@@ -235,7 +241,9 @@ export function PlanningPage() {
             phone: staff.phone,
             color: staff.color,
             contractHours: staff.contractHours,
-            staffGroup: staff.staffGroup
+            staffGroup: staff.staffGroup,
+            workDaysWeek1: staff.workDaysWeek1 || ['mon', 'tue', 'wed', 'thu', 'fri'],
+            workDaysWeek2: staff.workDaysWeek2 || ['mon', 'tue', 'wed', 'thu', 'fri']
         })
         setIsStaffDialogOpen(true)
     }
@@ -253,6 +261,8 @@ export function PlanningPage() {
             color: staffForm.color,
             contractHours: staffForm.contractHours,
             staffGroup: staffForm.staffGroup,
+            workDaysWeek1: staffForm.workDaysWeek1,
+            workDaysWeek2: staffForm.workDaysWeek2,
             isActive: true
         }
 
@@ -849,6 +859,74 @@ export function PlanningPage() {
                                         <span className="font-medium">{group.label}</span>
                                     </button>
                                 ))}
+                            </div>
+                        </div>
+
+                        {/* Jours de travail Semaine 1 */}
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <span className="text-blue-500">1️⃣</span>
+                                Jours travaillés - Semaine 1
+                            </Label>
+                            <div className="flex gap-1 flex-wrap">
+                                {WEEK_DAYS.map(day => {
+                                    const isSelected = staffForm.workDaysWeek1.includes(day.key)
+                                    return (
+                                        <button
+                                            key={day.key}
+                                            type="button"
+                                            className={cn(
+                                                "w-10 h-10 rounded-lg border-2 font-bold transition-all",
+                                                isSelected
+                                                    ? "border-blue-500 bg-blue-500 text-white"
+                                                    : "border-muted text-muted-foreground hover:border-blue-300"
+                                            )}
+                                            onClick={() => {
+                                                const newDays = isSelected
+                                                    ? staffForm.workDaysWeek1.filter(d => d !== day.key)
+                                                    : [...staffForm.workDaysWeek1, day.key]
+                                                setStaffForm({ ...staffForm, workDaysWeek1: newDays })
+                                            }}
+                                            title={day.label}
+                                        >
+                                            {day.short}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Jours de travail Semaine 2 */}
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <span className="text-green-500">2️⃣</span>
+                                Jours travaillés - Semaine 2
+                            </Label>
+                            <div className="flex gap-1 flex-wrap">
+                                {WEEK_DAYS.map(day => {
+                                    const isSelected = staffForm.workDaysWeek2.includes(day.key)
+                                    return (
+                                        <button
+                                            key={day.key}
+                                            type="button"
+                                            className={cn(
+                                                "w-10 h-10 rounded-lg border-2 font-bold transition-all",
+                                                isSelected
+                                                    ? "border-green-500 bg-green-500 text-white"
+                                                    : "border-muted text-muted-foreground hover:border-green-300"
+                                            )}
+                                            onClick={() => {
+                                                const newDays = isSelected
+                                                    ? staffForm.workDaysWeek2.filter(d => d !== day.key)
+                                                    : [...staffForm.workDaysWeek2, day.key]
+                                                setStaffForm({ ...staffForm, workDaysWeek2: newDays })
+                                            }}
+                                            title={day.label}
+                                        >
+                                            {day.short}
+                                        </button>
+                                    )
+                                })}
                             </div>
                         </div>
 
