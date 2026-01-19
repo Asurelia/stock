@@ -5,9 +5,11 @@ import {
     type Staff,
     type ScheduleEvent,
     type ScheduleEventType,
+    type StaffGroup,
     EVENT_TYPES,
     STAFF_ROLES,
-    STAFF_COLORS
+    STAFF_COLORS,
+    STAFF_GROUPS
 } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -83,7 +85,8 @@ export function PlanningPage() {
         email: '',
         phone: '',
         color: STAFF_COLORS[0],
-        contractHours: 35
+        contractHours: 35,
+        staffGroup: 'week1' as StaffGroup
     })
 
     // Event dialog
@@ -202,7 +205,8 @@ export function PlanningPage() {
             email: '',
             phone: '',
             color: STAFF_COLORS[0],
-            contractHours: 35
+            contractHours: 35,
+            staffGroup: 'week1' as StaffGroup
         })
     }
 
@@ -230,7 +234,8 @@ export function PlanningPage() {
             email: staff.email,
             phone: staff.phone,
             color: staff.color,
-            contractHours: staff.contractHours
+            contractHours: staff.contractHours,
+            staffGroup: staff.staffGroup
         })
         setIsStaffDialogOpen(true)
     }
@@ -247,6 +252,7 @@ export function PlanningPage() {
             phone: staffForm.phone,
             color: staffForm.color,
             contractHours: staffForm.contractHours,
+            staffGroup: staffForm.staffGroup,
             isActive: true
         }
 
@@ -492,98 +498,127 @@ export function PlanningPage() {
                                     })}
                                 </div>
 
-                                {/* Staff rows */}
-                                {staffList.map(staff => (
-                                    <div key={staff.id} className="grid grid-cols-8 gap-1 mb-1">
-                                        {/* Staff info */}
-                                        <div
-                                            className="p-2 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-muted/50"
-                                            style={{ borderLeft: `4px solid ${staff.color}` }}
-                                            onClick={() => setSelectedStaffId(selectedStaffId === staff.id ? null : staff.id)}
-                                            role="button"
-                                            tabIndex={0}
-                                            aria-label={`Basculer la vue pour ${staff.firstName} ${staff.lastName}`}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                    e.preventDefault()
-                                                    setSelectedStaffId(selectedStaffId === staff.id ? null : staff.id)
-                                                }
-                                            }}
-                                        >
-                                            <div>
-                                                <div className="font-medium text-sm">
-                                                    {staff.firstName} {staff.lastName.charAt(0)}.
-                                                </div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {calculateWeeklyHours(staff.id)}h / {staff.contractHours}h
-                                                </div>
-                                            </div>
-                                        </div>
+                                {/* Staff rows - grouped by staffGroup */}
+                                {(['manager', 'week1', 'week2'] as StaffGroup[]).map(groupKey => {
+                                    const groupStaff = staffList.filter(s => s.staffGroup === groupKey)
+                                    if (groupStaff.length === 0) return null
+                                    const groupInfo = STAFF_GROUPS[groupKey]
 
-                                        {/* Day cells */}
-                                        {weekDates.map((date, idx) => {
-                                            const cellEvents = getEventsForCell(staff.id, date)
-                                            const isToday = formatDate(date) === formatDate(new Date())
-                                            const dayLabel = `${DAYS_FR[idx]} ${date.getDate()}`
-
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    className={cn(
-                                                        "min-h-[60px] p-1 rounded-lg border cursor-pointer transition-colors",
-                                                        isToday ? "bg-primary/5 border-primary/30" : "bg-muted/30 border-transparent",
-                                                        "hover:border-primary/50"
-                                                    )}
-                                                    onClick={() => handleAddEvent(staff.id, date)}
-                                                    role="button"
-                                                    tabIndex={0}
-                                                    aria-label={`Ajouter un événement pour ${staff.firstName} ${staff.lastName} le ${dayLabel}`}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter' || e.key === ' ') {
-                                                            e.preventDefault()
-                                                            handleAddEvent(staff.id, date)
-                                                        }
-                                                    }}
+                                    return (
+                                        <div key={groupKey} className="mb-4">
+                                            {/* Group header */}
+                                            <div className="flex items-center gap-2 mb-2 px-2">
+                                                <span className="text-lg">{groupInfo.icon}</span>
+                                                <span
+                                                    className="font-semibold text-sm"
+                                                    style={{ color: groupInfo.color }}
                                                 >
-                                                    {cellEvents.map(event => {
-                                                        const eventInfo = EVENT_TYPES[event.eventType]
+                                                    {groupInfo.label}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    ({groupStaff.length})
+                                                </span>
+                                                <div
+                                                    className="flex-1 h-px ml-2"
+                                                    style={{ backgroundColor: groupInfo.color + '40' }}
+                                                />
+                                            </div>
+
+                                            {/* Staff members in this group */}
+                                            {groupStaff.map(staff => (
+                                                <div key={staff.id} className="grid grid-cols-8 gap-1 mb-1">
+                                                    {/* Staff info */}
+                                                    <div
+                                                        className="p-2 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-muted/50"
+                                                        style={{ borderLeft: `4px solid ${staff.color}` }}
+                                                        onClick={() => setSelectedStaffId(selectedStaffId === staff.id ? null : staff.id)}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        aria-label={`Basculer la vue pour ${staff.firstName} ${staff.lastName}`}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                                e.preventDefault()
+                                                                setSelectedStaffId(selectedStaffId === staff.id ? null : staff.id)
+                                                            }
+                                                        }}
+                                                    >
+                                                        <div>
+                                                            <div className="font-medium text-sm">
+                                                                {staff.firstName} {staff.lastName.charAt(0)}.
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {calculateWeeklyHours(staff.id)}h / {staff.contractHours}h
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Day cells */}
+                                                    {weekDates.map((date, idx) => {
+                                                        const cellEvents = getEventsForCell(staff.id, date)
+                                                        const isToday = formatDate(date) === formatDate(new Date())
+                                                        const dayLabel = `${DAYS_FR[idx]} ${date.getDate()}`
+
                                                         return (
                                                             <div
-                                                                key={event.id}
-                                                                className="text-xs p-1 rounded mb-0.5 truncate cursor-pointer"
-                                                                style={{
-                                                                    backgroundColor: `${eventInfo.color}20`,
-                                                                    borderLeft: `3px solid ${eventInfo.color}`
-                                                                }}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    handleEditEvent(event)
-                                                                }}
+                                                                key={idx}
+                                                                className={cn(
+                                                                    "min-h-[60px] p-1 rounded-lg border cursor-pointer transition-colors",
+                                                                    isToday ? "bg-primary/5 border-primary/30" : "bg-muted/30 border-transparent",
+                                                                    "hover:border-primary/50"
+                                                                )}
+                                                                onClick={() => handleAddEvent(staff.id, date)}
                                                                 role="button"
                                                                 tabIndex={0}
-                                                                aria-label={`${eventInfo.label} - ${event.startTime ? formatTime(event.startTime) : 'Modifier'}`}
+                                                                aria-label={`Ajouter un événement pour ${staff.firstName} ${staff.lastName} le ${dayLabel}`}
                                                                 onKeyDown={(e) => {
                                                                     if (e.key === 'Enter' || e.key === ' ') {
                                                                         e.preventDefault()
-                                                                        e.stopPropagation()
-                                                                        handleEditEvent(event)
+                                                                        handleAddEvent(staff.id, date)
                                                                     }
                                                                 }}
                                                             >
-                                                                <span className="mr-1">{eventInfo.icon}</span>
-                                                                {event.startTime && (
-                                                                    <span className="font-mono">
-                                                                        {formatTime(event.startTime)}
-                                                                    </span>
-                                                                )}
+                                                                {cellEvents.map(event => {
+                                                                    const eventInfo = EVENT_TYPES[event.eventType]
+                                                                    return (
+                                                                        <div
+                                                                            key={event.id}
+                                                                            className="text-xs p-1 rounded mb-0.5 truncate cursor-pointer"
+                                                                            style={{
+                                                                                backgroundColor: `${eventInfo.color}20`,
+                                                                                borderLeft: `3px solid ${eventInfo.color}`
+                                                                            }}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                handleEditEvent(event)
+                                                                            }}
+                                                                            role="button"
+                                                                            tabIndex={0}
+                                                                            aria-label={`${eventInfo.label} - ${event.startTime ? formatTime(event.startTime) : 'Modifier'}`}
+                                                                            onKeyDown={(e) => {
+                                                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                                                    e.preventDefault()
+                                                                                    e.stopPropagation()
+                                                                                    handleEditEvent(event)
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <span className="mr-1">{eventInfo.icon}</span>
+                                                                            {event.startTime && (
+                                                                                <span className="font-mono">
+                                                                                    {formatTime(event.startTime)}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    )
+                                                                })}
                                                             </div>
                                                         )
                                                     })}
                                                 </div>
-                                            )
-                                        })}
-                                    </div>
-                                ))}
+                                            ))}
+                                        </div>
+                                    )
+                                })}
                             </div>
                         </div>
                     )}
@@ -791,6 +826,28 @@ export function PlanningPage() {
                                         style={{ backgroundColor: color }}
                                         onClick={() => setStaffForm({ ...staffForm, color })}
                                     />
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Groupe</Label>
+                            <div className="flex gap-2 flex-wrap">
+                                {(Object.entries(STAFF_GROUPS) as [StaffGroup, { label: string; color: string; icon: string }][]).map(([key, group]) => (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        className={cn(
+                                            "px-3 py-2 rounded-lg border-2 transition-all flex items-center gap-2",
+                                            staffForm.staffGroup === key
+                                                ? "border-primary bg-primary/10 text-primary"
+                                                : "border-muted hover:border-primary/50"
+                                        )}
+                                        onClick={() => setStaffForm({ ...staffForm, staffGroup: key })}
+                                    >
+                                        <span>{group.icon}</span>
+                                        <span className="font-medium">{group.label}</span>
+                                    </button>
                                 ))}
                             </div>
                         </div>

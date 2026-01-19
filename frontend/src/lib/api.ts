@@ -101,6 +101,8 @@ export interface MenuRecipe {
 // Staff & Planning Types
 // =============================================
 
+export type StaffGroup = 'week1' | 'week2' | 'manager'
+
 export interface Staff {
     id: string
     firstName: string
@@ -114,7 +116,14 @@ export interface Staff {
     isActive: boolean
     signatureData?: string | null
     pinCode?: string | null
+    staffGroup: StaffGroup
     createdAt: string
+}
+
+export const STAFF_GROUPS: Record<StaffGroup, { label: string; color: string; icon: string }> = {
+    week1: { label: 'Semaine 1', color: '#3B82F6', icon: '1️⃣' },
+    week2: { label: 'Semaine 2', color: '#22C55E', icon: '2️⃣' },
+    manager: { label: 'Chef Gérant', color: '#F59E0B', icon: '👨‍🍳' }
 }
 
 export type ScheduleEventType =
@@ -1222,6 +1231,7 @@ export const api = {
                 isActive: s.is_active,
                 signatureData: s.signature_data,
                 pinCode: s.pin_code,
+                staffGroup: ((s as Record<string, unknown>).staff_group as StaffGroup) || 'week1',
                 createdAt: s.created_at
             }))
         },
@@ -1247,6 +1257,7 @@ export const api = {
                 isActive: data.is_active,
                 signatureData: data.signature_data,
                 pinCode: data.pin_code,
+                staffGroup: ((data as Record<string, unknown>).staff_group as StaffGroup) || 'week1',
                 createdAt: data.created_at
             }
         },
@@ -1263,7 +1274,8 @@ export const api = {
                     color: staffData.color,
                     contract_hours: staffData.contractHours,
                     signature_data: staffData.signatureData || null,
-                    pin_code: staffData.pinCode || null
+                    pin_code: staffData.pinCode || null,
+                    staff_group: staffData.staffGroup || 'week1'
                 }])
                 .select()
                 .single()
@@ -1282,6 +1294,7 @@ export const api = {
                 isActive: data.is_active,
                 signatureData: data.signature_data,
                 pinCode: data.pin_code,
+                staffGroup: ((data as Record<string, unknown>).staff_group as StaffGroup) || 'week1',
                 createdAt: data.created_at
             }
         },
@@ -1298,6 +1311,7 @@ export const api = {
             if (staffData.isActive !== undefined) updateData.is_active = staffData.isActive
             if (staffData.signatureData !== undefined) updateData.signature_data = staffData.signatureData
             if (staffData.pinCode !== undefined) updateData.pin_code = staffData.pinCode
+            if (staffData.staffGroup !== undefined) updateData.staff_group = staffData.staffGroup
 
             const { error } = await getSupabase()
                 .from('staff')
