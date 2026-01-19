@@ -433,27 +433,29 @@ export function PlanningPage() {
     const handleGeneratePlanning = async () => {
         if (!confirm(`Générer automatiquement les horaires de travail pour la semaine du ${weekDates[0].toLocaleDateString()} ?\nCela n'écrasera pas les événements existants.`)) return
 
-        // 1. Déterminer si la semaine affichée s'aligne sur "Semaine 1" ou "Semaine 2"
-        // On utilise le numéro de semaine ISO. Paire = Semaine 2 (B), Impaire = Semaine 1 (A)
-        // (On peut inverser si besoin via une option ou toggle, mais on commence simple)
-        const getWeekNumber = (d: Date) => {
-            const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
-            date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
-            const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
-            return Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
-        }
-
-        const weekNum = getWeekNumber(weekDates[0])
-        const isWeek1 = weekNum % 2 !== 0 // Impaire = Semaine 1
-
-        const weekTypeLabel = isWeek1 ? "Semaine 1 (Impaire)" : "Semaine 2 (Paire)"
-        toast.info(`Génération pour ${weekTypeLabel}...`)
-
         try {
+            // Récupérer la liste des staff fraîchement mise à jour (pour être sûr d'avoir les bon jours de travail)
+            const freshStaffList = await api.staff.getAll()
+
+            // 1. Déterminer si la semaine affichée s'aligne sur "Semaine 1" ou "Semaine 2"
+            // On utilise le numéro de semaine ISO. Paire = Semaine 2 (B), Impaire = Semaine 1 (A)
+            const getWeekNumber = (d: Date) => {
+                const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+                date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
+                const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+                return Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+            }
+
+            const weekNum = getWeekNumber(weekDates[0])
+            const isWeek1 = weekNum % 2 !== 0 // Impaire = Semaine 1
+
+            const weekTypeLabel = isWeek1 ? "Semaine 1 (Impaire)" : "Semaine 2 (Paire)"
+            toast.info(`Génération pour ${weekTypeLabel}...`)
+
             let createdCount = 0
             const newEvents: Promise<any>[] = []
 
-            for (const staff of staffList) {
+            for (const staff of freshStaffList) {
                 // Quels jours ce staff doit-il travailler cette semaine ?
                 // Si on est en Semaine Impaire (isWeek1=true), on prend ses jours de workDaysWeek1
                 // Sinon on prend workDaysWeek2
@@ -475,7 +477,7 @@ export function PlanningPage() {
                         )
 
                         if (!hasEvent) {
-                            // Créer un événement par défaut (ex: 8h-16h ou selon contrat ?)
+                            // Créer un événement par défaut
                             // On met un horaire standard 8h-16h (8h) pour l'instant
                             newEvents.push(api.scheduleEvents.create({
                                 staffId: staff.id,
@@ -497,6 +499,7 @@ export function PlanningPage() {
             if (newEvents.length > 0) {
                 await Promise.all(newEvents)
                 queryClient.invalidateQueries({ queryKey: ['schedule'] })
+                await queryClient.invalidateQueries({ queryKey: ['staff'] }) // Rafraichir aussi staff pour l'ui
                 toast.success(`${createdCount} événements crées pour ${weekTypeLabel}`)
             } else {
                 toast.info("Aucun événement à créer (tout est déjà rempli ou personne ne travaille)")
