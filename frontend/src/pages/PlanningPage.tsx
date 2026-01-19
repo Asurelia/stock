@@ -41,7 +41,7 @@ import {
 } from '@/components/ui/tabs'
 import {
     ChevronLeft, ChevronRight, Plus, Users, Calendar, Clock,
-    Loader2, Trash2, Pencil, Download, Mail, Check, X, UserPlus
+    Loader2, Trash2, Pencil, Download, Mail, Check, X, UserPlus, AlertCircle, RefreshCw, Wand2, Settings2
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -384,6 +384,130 @@ export function PlanningPage() {
         toast.success('Planning copié dans le presse-papier')
     }
 
+    // =================================================================================
+    // GESTION DU ROULEMENT AUTOMATIQUE (2-2-3)
+    // =================================================================================
+
+    // Configuration automatique des profils staff
+    const handleAutoConfigureRotation = async () => {
+        if (!confirm("⚠️ Attention : Cette action va reconfigurer les jours de travail DE TOUS LES COLLABORATEURS basés sur leur groupe (Semaine 1 / Semaine 2). Voulez-vous continuer ?")) return
+
+        const CYCLE_1_WEEK1: WorkDay[] = ['mon', 'thu', 'fri']
+        const CYCLE_1_WEEK2: WorkDay[] = ['tue', 'wed', 'sat', 'sun']
+
+        const CYCLE_2_WEEK1: WorkDay[] = ['tue', 'wed', 'sat', 'sun']
+        const CYCLE_2_WEEK2: WorkDay[] = ['mon', 'thu', 'fri']
+
+        let updatedCount = 0
+        try {
+            const updates = staffList.map(async (staff) => {
+                let updates: Partial<Staff> = {}
+                let changed = false
+
+                if (staff.staffGroup === 'week1') {
+                    // Equipe 1 : Configurer selon le cycle A
+                    updates = { workDaysWeek1: CYCLE_1_WEEK1, workDaysWeek2: CYCLE_1_WEEK2 }
+                    changed = true
+                } else if (staff.staffGroup === 'week2') {
+                    // Equipe 2 : Configurer selon le cycle B (Inverse)
+                    updates = { workDaysWeek1: CYCLE_2_WEEK1, workDaysWeek2: CYCLE_2_WEEK2 }
+                    changed = true
+                }
+
+                if (changed) {
+                    await api.staff.update(staff.id, updates)
+                    updatedCount++
+                }
+            })
+
+            await Promise.all(updates)
+            await queryClient.invalidateQueries({ queryKey: ['staff'] })
+            toast.success(`Rotation configurée pour ${updatedCount} collaborateurs`)
+        } catch (err) {
+            console.error(err)
+            toast.error("Erreur lors de la configuration du roulement")
+        }
+    }
+
+    // Génération automatique du planning pour la semaine affichée
+    const handleGeneratePlanning = async () => {
+        if (!confirm(`Générer automatiquement les horaires de travail pour la semaine du ${weekDates[0].toLocaleDateString()} ?\nCela n'écrasera pas les événements existants.`)) return
+
+        // 1. Déterminer si la semaine affichée s'aligne sur "Semaine 1" ou "Semaine 2"
+        // On utilise le numéro de semaine ISO. Paire = Semaine 2 (B), Impaire = Semaine 1 (A)
+        // (On peut inverser si besoin via une option ou toggle, mais on commence simple)
+        const getWeekNumber = (d: Date) => {
+            const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+            date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
+            const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+            return Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+        }
+
+        const weekNum = getWeekNumber(weekDates[0])
+        const isWeek1 = weekNum % 2 !== 0 // Impaire = Semaine 1
+
+        const weekTypeLabel = isWeek1 ? "Semaine 1 (Impaire)" : "Semaine 2 (Paire)"
+        toast.info(`Génération pour ${weekTypeLabel}...`)
+
+        try {
+            let createdCount = 0
+            const newEvents: Promise<any>[] = []
+
+            for (const staff of staffList) {
+                // Quels jours ce staff doit-il travailler cette semaine ?
+                // Si on est en Semaine Impaire (isWeek1=true), on prend ses jours de workDaysWeek1
+                // Sinon on prend workDaysWeek2
+                const targetDays = isWeek1 ? staff.workDaysWeek1 : staff.workDaysWeek2
+
+                if (!targetDays || targetDays.length === 0) continue
+
+                // Pour chaque jour de la semaine affichée
+                weekDates.forEach((date, idx) => {
+                    const dayKey = WEEK_DAYS[idx].key // 'mon', 'tue', ...
+
+                    // Si ce jour est dans ses jours de travail
+                    if (targetDays.includes(dayKey)) {
+                        // Vérifier s'il a déjà un événement ce jour là
+                        const hasEvent = events.some(e =>
+                            e.staffId === staff.id &&
+                            // startDate est une string 'YYYY-MM-DD'
+                            e.startDate === formatDate(date)
+                        )
+
+                        if (!hasEvent) {
+                            // Créer un événement par défaut (ex: 8h-16h ou selon contrat ?)
+                            // On met un horaire standard 8h-16h (8h) pour l'instant
+                            newEvents.push(api.scheduleEvents.create({
+                                staffId: staff.id,
+                                startDate: formatDate(date),
+                                endDate: formatDate(date),
+                                startTime: '08:00',
+                                endTime: '16:00',
+                                eventType: 'work',
+                                hours: 8,
+                                notes: 'Auto-généré',
+                                isValidated: false
+                            }))
+                            createdCount++
+                        }
+                    }
+                })
+            }
+
+            if (newEvents.length > 0) {
+                await Promise.all(newEvents)
+                queryClient.invalidateQueries({ queryKey: ['schedule'] })
+                toast.success(`${createdCount} événements crées pour ${weekTypeLabel}`)
+            } else {
+                toast.info("Aucun événement à créer (tout est déjà rempli ou personne ne travaille)")
+            }
+
+        } catch (err) {
+            console.error(err)
+            toast.error("Erreur lors de la génération")
+        }
+    }
+
     if (loadingStaff || loadingEvents) {
         return (
             <div className="flex items-center justify-center h-[50vh]">
@@ -458,6 +582,14 @@ export function PlanningPage() {
                                         aria-label="Aller à aujourd'hui"
                                     >
                                         Aujourd'hui
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={handleGeneratePlanning}
+                                        title="Générer planning auto"
+                                    >
+                                        <Wand2 className="h-4 w-4 text-primary" />
                                     </Button>
                                     <Button
                                         variant="outline"
@@ -653,6 +785,18 @@ export function PlanningPage() {
 
                 {/* TEAM TAB */}
                 <TabsContent value="team" className="space-y-4">
+                    <div className="flex justify-end">
+                        <Button
+                            variant="outline"
+                            className="gap-2"
+                            onClick={handleAutoConfigureRotation}
+                            title="Configure automatiquement les jours de tous les collaborateurs (Cycle 2-2-3)"
+                        >
+                            <Settings2 className="h-4 w-4" />
+                            Configurer Roulement Auto
+                        </Button>
+                    </div>
+
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {staffList.map(staff => (
                             <Card key={staff.id} className="overflow-hidden">
