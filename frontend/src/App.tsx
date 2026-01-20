@@ -15,7 +15,7 @@ const RecipesPage = lazy(() => import('@/pages/RecipesPage').then(m => ({ defaul
 const MenusPage = lazy(() => import('@/pages/MenusPage').then(m => ({ default: m.MenusPage })));
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })));
 const TemperaturesPage = lazy(() => import('@/pages/TemperaturesPage').then(m => ({ default: m.TemperaturesPage })));
-const TraceabilityPage = lazy(() => import('@/pages/TraceabilityPage').then(m => ({ default: m.TraceabilityPage })));
+const TraceabilityArchivePage = lazy(() => import('@/pages/TraceabilityArchivePage').then(m => ({ default: m.TraceabilityArchivePage })));
 const ProductionPage = lazy(() => import('@/pages/ProductionPage').then(m => ({ default: m.ProductionPage })));
 const PlanningPage = lazy(() => import('@/pages/PlanningPage').then(m => ({ default: m.PlanningPage })));
 
@@ -51,7 +51,7 @@ function App() {
               <Route path="/recipes" element={<Suspense fallback={<PageLoader />}><RecipesPage /></Suspense>} />
               <Route path="/menus" element={<Suspense fallback={<PageLoader />}><MenusPage /></Suspense>} />
               <Route path="/production" element={<Suspense fallback={<PageLoader />}><ProductionPage /></Suspense>} />
-              <Route path="/traceability" element={<Suspense fallback={<PageLoader />}><TraceabilityPage /></Suspense>} />
+              <Route path="/traceability" element={<Suspense fallback={<PageLoader />}><TraceabilityArchivePage /></Suspense>} />
               <Route path="/planning" element={<Suspense fallback={<PageLoader />}><PlanningPage /></Suspense>} />
               <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsPage /></Suspense>} />
               <Route path="*" element={<Navigate to="/" replace />} />
