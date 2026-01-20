@@ -85,37 +85,51 @@ export function TraceabilityPage() {
 
     const { from, to } = getDateRange(dateFilter);
 
-    const { data: photos = [], isLoading } = useQuery({
+    const { data: photos = [], isLoading, error: photosError } = useQuery({
         queryKey: ['traceability-photos', from, to],
-        queryFn: () => api.traceabilityPhotos.getByDateRange(from, to),
+        queryFn: async () => {
+            try {
+                return await api.traceabilityPhotos.getByDateRange(from, to);
+            } catch (err) {
+                console.error('Error fetching traceability photos:', err);
+                return [];
+            }
+        },
     });
 
-    // Get stats
+    // Get stats - Calculate independently to avoid dependency issues
     const { data: stats } = useQuery({
-        queryKey: ['traceability-stats', from, to],
+        queryKey: ['traceability-stats', from, to, photos.length],
         queryFn: async () => {
-            // In a real app, this would be a dedicated endpoint
-            // For now, we calculate from photos
-            const todayOutputs = await api.outputs.getByDateRange(from, to);
-            const uniqueProducts = new Set(todayOutputs.map(o => o.productId));
+            try {
+                const todayOutputs = await api.outputs.getByDateRange(from, to);
+                const uniqueProducts = new Set(todayOutputs.map(o => o.productId));
 
-            // Get unique product IDs from photos (via outputs relation)
-            const productsWithPhotos = new Set(
-                photos
-                    .map(p => {
-                        const outputs = p.outputs as { id: string; product_id: string } | null;
-                        return outputs?.product_id;
-                    })
-                    .filter((id): id is string => id !== null && id !== undefined)
-            );
+                // Get unique product IDs from photos (via outputs relation)
+                const productsWithPhotos = new Set(
+                    photos
+                        .map(p => {
+                            const outputs = p.outputs as { id: string; product_id: string } | null;
+                            return outputs?.product_id;
+                        })
+                        .filter((id): id is string => id !== null && id !== undefined)
+                );
 
-            return {
-                total: uniqueProducts.size,
-                withPhotos: productsWithPhotos.size,
-                percentage: uniqueProducts.size > 0
-                    ? Math.round((productsWithPhotos.size / uniqueProducts.size) * 100)
-                    : 100,
-            };
+                return {
+                    total: uniqueProducts.size,
+                    withPhotos: productsWithPhotos.size,
+                    percentage: uniqueProducts.size > 0
+                        ? Math.round((productsWithPhotos.size / uniqueProducts.size) * 100)
+                        : 100,
+                };
+            } catch (err) {
+                console.error('Error calculating stats:', err);
+                return {
+                    total: 0,
+                    withPhotos: 0,
+                    percentage: 100,
+                };
+            }
         },
         enabled: photos !== undefined,
     });
@@ -168,6 +182,25 @@ export function TraceabilityPage() {
                         ))}
                     </div>
                 </div>
+            </div>
+        );
+    }
+
+    if (photosError) {
+        return (
+            <div className="p-6">
+                <Card className="p-8 text-center border-destructive">
+                    <div className="text-destructive mb-4">⚠️</div>
+                    <h3 className="text-lg font-semibold mb-2">Erreur de chargement</h3>
+                    <p className="text-muted-foreground mb-4">
+                        Impossible de charger les photos de traçabilité.
+                        <br />
+                        Vérifiez que le bucket storage est configuré.
+                    </p>
+                    <Button onClick={() => window.location.reload()}>
+                        Réessayer
+                    </Button>
+                </Card>
             </div>
         );
     }
