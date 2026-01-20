@@ -98,7 +98,16 @@ export function TraceabilityPage() {
             // For now, we calculate from photos
             const todayOutputs = await api.outputs.getByDateRange(from, to);
             const uniqueProducts = new Set(todayOutputs.map(o => o.productId));
-            const productsWithPhotos = new Set(photos.map(p => p.output_id));
+
+            // Get unique product IDs from photos (via outputs relation)
+            const productsWithPhotos = new Set(
+                photos
+                    .map(p => {
+                        const outputs = p.outputs as { id: string; product_id: string } | null;
+                        return outputs?.product_id;
+                    })
+                    .filter((id): id is string => id !== null && id !== undefined)
+            );
 
             return {
                 total: uniqueProducts.size,

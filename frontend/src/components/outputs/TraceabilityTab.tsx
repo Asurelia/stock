@@ -63,9 +63,11 @@ export function TraceabilityTab({ products, todayOutputs, onPhotoUploaded }: Tra
                 existing.outputs.push(output)
             } else {
                 // Check if there's a photo for any output of this product today
-                const photoForProduct = todayPhotos.find(p =>
-                    (p.outputs as { product_id: string } | null)?.product_id === output.productId
-                )
+                // The API returns: outputs { id, product_id, quantity, products { name, category } }
+                const photoForProduct = todayPhotos.find(p => {
+                    const outputs = p.outputs as { id: string; product_id: string; quantity: number } | null
+                    return outputs?.product_id === output.productId
+                })
 
                 groups.set(output.productId, {
                     productId: output.productId,
@@ -131,8 +133,16 @@ export function TraceabilityTab({ products, todayOutputs, onPhotoUploaded }: Tra
             handleClearPhoto()
             setPhotoDialogOpen(false)
             setSelectedGroup(null)
+
+            // Import toast dynamically to show success message
+            import('sonner').then(({ toast }) => {
+                toast.success('Photo de traçabilité enregistrée')
+            })
         } catch (error) {
             console.error('Failed to upload photo:', error)
+            import('sonner').then(({ toast }) => {
+                toast.error('Erreur lors de l\'enregistrement de la photo')
+            })
         } finally {
             setIsUploading(false)
         }
