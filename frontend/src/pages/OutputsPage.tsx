@@ -450,9 +450,12 @@ export function OutputsPage() {
                         for (const config of configs) {
                             await api.recurringOutputs.configs.upsert(config)
                         }
+                        // Sync daily outputs with new config
+                        await api.recurringOutputs.daily.syncForDate(todayDate)
                         toast.success('Configuration sauvegardée')
-                        queryClient.invalidateQueries({ queryKey: ['recurring-configs'] })
-                        queryClient.invalidateQueries({ queryKey: ['daily-recurring'] })
+                        // Force refetch all related data
+                        await queryClient.invalidateQueries({ queryKey: ['recurring-configs'], refetchType: 'all' })
+                        await queryClient.invalidateQueries({ queryKey: ['daily-recurring'], refetchType: 'all' })
                         setIsDailyDialogOpen(false)
                         setSelectedDailyCategory(null)
                     } catch {
@@ -467,9 +470,9 @@ export function OutputsPage() {
                 onClose={() => setIsConfigDialogOpen(false)}
                 products={products}
                 configs={recurringConfigs}
-                onConfigChange={() => {
-                    queryClient.invalidateQueries({ queryKey: ['recurring-configs'] })
-                    queryClient.invalidateQueries({ queryKey: ['daily-recurring'] })
+                onConfigChange={async () => {
+                    await queryClient.invalidateQueries({ queryKey: ['recurring-configs'], refetchType: 'all' })
+                    await queryClient.invalidateQueries({ queryKey: ['daily-recurring'], refetchType: 'all' })
                 }}
             />
         </div>
@@ -656,13 +659,13 @@ function RecurringConfigDialog({
     onClose: () => void
     products: Product[]
     configs: RecurringOutputConfig[]
-    onConfigChange: () => void
+    onConfigChange: () => Promise<void> | void
 }) {
     const handleDelete = async (configId: string) => {
         try {
             await api.recurringOutputs.configs.delete(configId)
             toast.success('Configuration supprimée')
-            onConfigChange()
+            await onConfigChange()
         } catch {
             toast.error('Erreur lors de la suppression')
         }
