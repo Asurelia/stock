@@ -214,143 +214,143 @@ export function RecipesPage() {
                                 Nouvelle Recette
                             </Button>
                         </DialogTrigger>
-                    <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle>
-                                {editingRecipe ? "Modifier la recette" : "Nouvelle Recette"}
-                            </DialogTitle>
-                        </DialogHeader>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="name">Nom *</Label>
-                                    <Input
-                                        id="name"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        placeholder="Nom de la recette"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="portions">Nombre de portions</Label>
-                                    <Input
-                                        id="portions"
-                                        type="number"
-                                        min="1"
-                                        value={portions}
-                                        onChange={(e) => setPortions(parseInt(e.target.value) || 1)}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Tags diététiques</Label>
-                                <div className="flex flex-wrap gap-2">
-                                    {DIETARY_TAGS.map(tag => (
-                                        <Badge
-                                            key={tag.value}
-                                            variant={dietaryTags.includes(tag.value) ? "default" : "outline"}
-                                            className={`cursor-pointer ${dietaryTags.includes(tag.value) ? tag.color + ' text-white' : ''}`}
-                                            onClick={() => toggleTag(tag.value)}
-                                        >
-                                            {tag.label}
-                                        </Badge>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <Label>Ingrédients</Label>
-                                    <Button type="button" variant="outline" size="sm" onClick={addIngredient}>
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Ajouter
-                                    </Button>
-                                </div>
-
-                                {ingredients.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg">
-                                        Aucun ingrédient. Cliquez sur "Ajouter"
-                                    </p>
-                                ) : (
+                        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                                <DialogTitle>
+                                    {editingRecipe ? "Modifier la recette" : "Nouvelle Recette"}
+                                </DialogTitle>
+                            </DialogHeader>
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        {ingredients.map((ing, index) => (
-                                            <div key={index} className="flex gap-2 items-end p-3 border rounded-lg">
-                                                <div className="flex-1">
-                                                    <Label className="text-xs">Produit</Label>
-                                                    <Select
-                                                        value={ing.productId}
-                                                        onValueChange={(v) => updateIngredient(index, 'productId', v)}
-                                                    >
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Sélectionner" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {products?.map(p => (
-                                                                <SelectItem key={p.id} value={p.id}>
-                                                                    {p.name} ({p.unit})
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="w-24">
-                                                    <Label className="text-xs">Quantité</Label>
-                                                    <Input
-                                                        type="number"
-                                                        step="0.01"
-                                                        min="0"
-                                                        value={ing.quantity || ""}
-                                                        onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
-                                                    />
-                                                </div>
-                                                <div className="w-20">
-                                                    <Label className="text-xs">Unité</Label>
-                                                    <Input
-                                                        value={ing.unit}
-                                                        onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
-                                                        placeholder="kg"
-                                                    />
-                                                </div>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="text-red-500"
-                                                    onClick={() => removeIngredient(index)}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            </div>
+                                        <Label htmlFor="name">Nom *</Label>
+                                        <Input
+                                            id="name"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                            placeholder="Nom de la recette"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="portions">Nombre de portions</Label>
+                                        <Input
+                                            id="portions"
+                                            type="number"
+                                            min="1"
+                                            value={portions}
+                                            onChange={(e) => setPortions(parseInt(e.target.value) || 1)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Tags diététiques</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {DIETARY_TAGS.map(tag => (
+                                            <Badge
+                                                key={tag.value}
+                                                variant={dietaryTags.includes(tag.value) ? "default" : "outline"}
+                                                className={`cursor-pointer ${dietaryTags.includes(tag.value) ? tag.color + ' text-white' : ''}`}
+                                                onClick={() => toggleTag(tag.value)}
+                                            >
+                                                {tag.label}
+                                            </Badge>
                                         ))}
                                     </div>
-                                )}
-                            </div>
+                                </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="instructions">Instructions</Label>
-                                <Textarea
-                                    id="instructions"
-                                    value={instructions}
-                                    onChange={(e) => setInstructions(e.target.value)}
-                                    placeholder="Étapes de préparation..."
-                                    rows={4}
-                                />
-                            </div>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <Label>Ingrédients</Label>
+                                        <Button type="button" variant="outline" size="sm" onClick={addIngredient}>
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Ajouter
+                                        </Button>
+                                    </div>
 
-                            <div className="flex justify-end gap-2">
-                                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                                    Annuler
-                                </Button>
-                                <Button type="submit" disabled={!name || createMutation.isPending || updateMutation.isPending}>
-                                    {(createMutation.isPending || updateMutation.isPending) && (
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    {ingredients.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg">
+                                            Aucun ingrédient. Cliquez sur "Ajouter"
+                                        </p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {ingredients.map((ing, index) => (
+                                                <div key={index} className="flex gap-2 items-end p-3 border rounded-lg">
+                                                    <div className="flex-1">
+                                                        <Label className="text-xs">Produit</Label>
+                                                        <Select
+                                                            value={ing.productId}
+                                                            onValueChange={(v) => updateIngredient(index, 'productId', v)}
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Sélectionner" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {products?.map(p => (
+                                                                    <SelectItem key={p.id} value={p.id}>
+                                                                        {p.name} ({p.unit})
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="w-24">
+                                                        <Label className="text-xs">Quantité</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            value={ing.quantity || ""}
+                                                            onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
+                                                        />
+                                                    </div>
+                                                    <div className="w-20">
+                                                        <Label className="text-xs">Unité</Label>
+                                                        <Input
+                                                            value={ing.unit}
+                                                            onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
+                                                            placeholder="kg"
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-red-500"
+                                                        onClick={() => removeIngredient(index)}
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
-                                    {editingRecipe ? "Modifier" : "Créer"}
-                                </Button>
-                            </div>
-                        </form>
-                    </DialogContent>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="instructions">Instructions</Label>
+                                    <Textarea
+                                        id="instructions"
+                                        value={instructions}
+                                        onChange={(e) => setInstructions(e.target.value)}
+                                        placeholder="Étapes de préparation..."
+                                        rows={4}
+                                    />
+                                </div>
+
+                                <div className="flex justify-end gap-2">
+                                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                                        Annuler
+                                    </Button>
+                                    <Button type="submit" disabled={!name || createMutation.isPending || updateMutation.isPending}>
+                                        {(createMutation.isPending || updateMutation.isPending) && (
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        )}
+                                        {editingRecipe ? "Modifier" : "Créer"}
+                                    </Button>
+                                </div>
+                            </form>
+                        </DialogContent>
                     </Dialog>
                 </div>
             </div>
@@ -395,8 +395,8 @@ export function RecipesPage() {
             {filteredRecipes && filteredRecipes.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {filteredRecipes.map(recipe => {
-                        const cost = calculateRecipeCost(recipe)
-                        const costPerPortion = recipe.portions > 0 ? cost / recipe.portions : 0
+                        const cost = recipe.cost ?? calculateRecipeCost(recipe)
+                        const costPerPortion = recipe.costPerPortion ?? (recipe.portions > 0 ? cost / recipe.portions : 0)
 
                         return (
                             <Card key={recipe.id} className="overflow-hidden">

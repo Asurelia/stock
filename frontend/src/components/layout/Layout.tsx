@@ -1,10 +1,11 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Package, Home, LogOut, Truck, Users, ChefHat, ClipboardList, Settings, BarChart, Thermometer, Camera, Menu, X, Calculator, CalendarDays } from 'lucide-react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Package, Home, LogOut, Truck, Users, ChefHat, ClipboardList, BarChart, Thermometer, Camera, Menu, X, Calculator, CalendarDays, UserCog, LogOutIcon } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeToggle } from '@/components/theme';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/auth';
 
 const navItems = [
     { icon: Home, label: 'Dashboard', path: '/' },
@@ -23,47 +24,51 @@ const navItems = [
 
 export function Layout() {
     const location = useLocation();
+    const navigate = useNavigate();
+    const { user, isGerant, logout } = useAuth();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-    const NavLinks = () => (
-        <>
-            {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
-                return (
-                    <Link
-                        key={item.path}
-                        to={item.path}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                            isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                        )}
-                    >
-                        <Icon className="w-4 h-4" />
-                        {item.label}
-                    </Link>
-                );
-            })}
-        </>
-    );
+    const renderNavLinks = () => navItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = location.pathname === item.path;
+
+        return (
+            <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                    "flex items-center gap-3 px-3 py-3 md:py-2 rounded-md text-base md:text-sm font-medium transition-colors",
+                    isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}
+            >
+                <Icon className="w-4 h-4" />
+                {item.label}
+            </Link>
+        );
+    });
 
     return (
         <div className="flex h-screen bg-background">
             {/* Mobile Header */}
-            <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b px-4 py-3 flex items-center justify-between">
+            <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b px-4 py-4 flex items-center justify-between shadow-sm">
                 <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                     StockPro
                 </h1>
                 <Button
                     variant="ghost"
                     size="icon"
+                    className="h-10 w-10"
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 >
-                    {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                    {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
                 </Button>
             </div>
 
@@ -81,19 +86,33 @@ export function Layout() {
                 mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
             )}>
                 <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <NavLinks />
+                    {renderNavLinks()}
                 </nav>
 
                 <div className="p-4 border-t space-y-3">
                     <ThemeToggle />
-                    <Link
-                        to="/settings"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                    {isGerant && (
+                        <Link
+                            to="/users"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                        >
+                            <UserCog className="w-4 h-4" />
+                            Utilisateurs
+                        </Link>
+                    )}
+                    <div className="flex items-center gap-2 px-3 py-2 text-sm">
+                        <span className="text-lg">{user?.avatarEmoji}</span>
+                        <span className="font-medium truncate">{user?.displayName}</span>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
+                        onClick={handleLogout}
                     >
-                        <Settings className="w-4 h-4" />
-                        Parametres
-                    </Link>
+                        <LogOutIcon className="w-4 h-4" />
+                        Déconnexion
+                    </Button>
                 </div>
             </aside>
 
@@ -107,18 +126,32 @@ export function Layout() {
                 </div>
 
                 <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <NavLinks />
+                    {renderNavLinks()}
                 </nav>
 
                 <div className="p-4 border-t space-y-3">
                     <ThemeToggle />
-                    <Link
-                        to="/settings"
-                        className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                    {isGerant && (
+                        <Link
+                            to="/users"
+                            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                        >
+                            <UserCog className="w-4 h-4" />
+                            Utilisateurs
+                        </Link>
+                    )}
+                    <div className="flex items-center gap-2 px-3 py-2 text-sm border-t pt-3">
+                        <span className="text-lg">{user?.avatarEmoji}</span>
+                        <span className="font-medium truncate flex-1">{user?.displayName}</span>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
+                        onClick={handleLogout}
                     >
-                        <Settings className="w-4 h-4" />
-                        Parametres
-                    </Link>
+                        <LogOutIcon className="w-4 h-4" />
+                        Déconnexion
+                    </Button>
                 </div>
             </aside>
 

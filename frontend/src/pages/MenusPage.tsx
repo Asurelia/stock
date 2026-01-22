@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { api, type Recipe } from "@/lib/api"
+import { api, type Recipe, type Menu } from "@/lib/api"
 import { format, addDays, subDays } from "date-fns"
 import { fr } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
@@ -43,19 +43,7 @@ const MEAL_TYPES = [
     { value: 'snack', label: 'Collation', icon: '🍎' },
 ] as const
 
-interface MenuWithRecipes {
-    id: string
-    name: string
-    menu_date: string
-    meal_type: string | null
-    notes: string | null
-    menu_recipes: {
-        id: string
-        recipe_id: string
-        servings: number | null
-        recipes: { name: string } | null
-    }[]
-}
+
 
 export function MenusPage() {
     const queryClient = useQueryClient()
@@ -75,7 +63,7 @@ export function MenusPage() {
         queryFn: () => api.menus.getByDate(currentDate)
     })
 
-    const menus = menusData as MenuWithRecipes[] | undefined
+    const menus = menusData as unknown as Menu[] | undefined
 
     const { data: recipes } = useQuery({
         queryKey: ['recipes'],
@@ -167,8 +155,8 @@ export function MenusPage() {
         const needs: Record<string, { productId: string; name: string; quantity: number; unit: string }> = {}
 
         menus?.forEach(menu => {
-            menu.menu_recipes?.forEach(mr => {
-                const recipe = recipes?.find(r => r.id === mr.recipe_id)
+            menu.recipes?.forEach(mr => {
+                const recipe = recipes?.find(r => r.id === mr.recipeId)
                 if (!recipe) return
 
                 const multiplier = (mr.servings || 1) / recipe.portions
@@ -192,6 +180,21 @@ export function MenusPage() {
     }
 
     const ingredientNeeds = calculateNeeds()
+
+    const consumeMenuMutation = useMutation({
+        mutationFn: api.menus.consume,
+        onSuccess: (count) => {
+            queryClient.invalidateQueries({ queryKey: ['products'] }) // Stock changed
+            toast.success(`Stock mis à jour : ${count} sorties créées`)
+        },
+        onError: () => toast.error("Erreur lors de la mise à jour du stock")
+    })
+
+    const handleConsumeMenu = (menu: Menu) => {
+        if (confirm(`Voulez-vous sortir du stock tous les ingrédients pour le menu "${menu.name}" ?\n\nCela créera des mouvements de sortie pour chaque ingrédient selon les portions définies.`)) {
+            consumeMenuMutation.mutate(menu.id)
+        }
+    }
 
     if (loadingMenus) {
         return (
@@ -246,9 +249,9 @@ export function MenusPage() {
             {menus && menus.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {menus.map(menu => {
-                        const mealType = MEAL_TYPES.find(t => t.value === menu.meal_type)
+                        const mealType = MEAL_TYPES.find(t => t.value === menu.mealType)
                         return (
-                            <Card key={menu.id}>
+                            <Card key={menu.id} className="flex flex-col">
                                 <CardHeader className="pb-2">
                                     <div className="flex items-center justify-between">
                                         <CardTitle className="text-lg flex items-center gap-2">
@@ -268,16 +271,16 @@ export function MenusPage() {
                                         <Badge variant="outline">{mealType.label}</Badge>
                                     )}
                                 </CardHeader>
-                                <CardContent className="space-y-4">
+                                <CardContent className="space-y-4 flex-1 flex flex-col">
                                     {/* Recipes in this menu */}
-                                    <div className="space-y-2">
-                                        {menu.menu_recipes && menu.menu_recipes.length > 0 ? (
-                                            menu.menu_recipes.map(mr => (
+                                    <div className="space-y-2 flex-1">
+                                        {menu.recipes && menu.recipes.length > 0 ? (
+                                            menu.recipes.map(mr => (
                                                 <div key={mr.id} className="flex items-center justify-between p-2 bg-secondary rounded-lg">
                                                     <div className="flex items-center gap-2">
                                                         <ChefHat className="h-4 w-4 text-orange-500" />
                                                         <span className="font-medium">
-                                                            {mr.recipes?.name || 'Recette inconnue'}
+                                                            {mr.recipeName}
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -315,6 +318,22 @@ export function MenusPage() {
                                             {menu.notes}
                                         </p>
                                     )}
+
+                                    <div className="pt-4 border-t mt-auto">
+                                        <Button
+                                            variant="secondary"
+                                            className="w-full hover:bg-green-100 hover:text-green-800 dark:hover:bg-green-900/30 dark:hover:text-green-400 transition-colors"
+                                            onClick={() => handleConsumeMenu(menu)}
+                                            disabled={consumeMenuMutation.isPending || !menu.recipes || menu.recipes.length === 0}
+                                        >
+                                            {consumeMenuMutation.isPending ? (
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <UtensilsCrossed className="mr-2 h-4 w-4" />
+                                            )}
+                                            Valider la consommation
+                                        </Button>
+                                    </div>
                                 </CardContent>
                             </Card>
                         )

@@ -32,6 +32,11 @@ export function ProductsPage() {
         staleTime: 1000 * 60 * 5, // 5 minutes
     })
 
+    const { data: usageStats } = useQuery({
+        queryKey: ['productUsage'],
+        queryFn: api.recipes.getProductUsageStats
+    })
+
     const deleteMutation = useMutation({
         mutationFn: api.products.delete,
         onSuccess: () => {
@@ -98,6 +103,19 @@ export function ProductsPage() {
             accessorKey: "category",
             header: "Catégorie",
             cell: ({ row }) => <Badge variant="outline">{row.getValue("category") || "Sans catégorie"}</Badge>,
+        },
+        {
+            id: "usage",
+            header: "Utilisation",
+            cell: ({ row }) => {
+                const count = usageStats?.[row.original.id] || 0
+                if (count === 0) return <span className="text-muted-foreground text-xs">-</span>
+                return (
+                    <Badge variant="secondary" className="font-normal">
+                        {count} recette{count > 1 ? 's' : ''}
+                    </Badge>
+                )
+            }
         },
         {
             accessorKey: "requiresTraceabilityPhoto",
@@ -236,7 +254,7 @@ export function ProductsPage() {
                 )
             },
         },
-    ], [handleEdit, handleDeleteClick, handleAdjustStock])
+    ], [handleEdit, handleDeleteClick, handleAdjustStock, usageStats])
 
     if (isLoading) {
         return (
