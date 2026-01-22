@@ -8,18 +8,18 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 
 const navItems = [
-    { icon: Home, label: 'Dashboard', path: '/' },
-    { icon: Package, label: 'Produits', path: '/products' },
-    { icon: LogOut, label: 'Sorties', path: '/outputs' },
-    { icon: Truck, label: 'Livraisons', path: '/deliveries' },
-    { icon: Users, label: 'Fournisseurs', path: '/suppliers' },
-    { icon: Thermometer, label: 'Temperatures', path: '/temperatures' },
-    { icon: ChefHat, label: 'Recettes', path: '/recipes' },
-    { icon: ClipboardList, label: 'Menus', path: '/menus' },
-    { icon: Calculator, label: 'Production', path: '/production' },
-    { icon: Camera, label: 'Tracabilite', path: '/traceability' },
-    { icon: CalendarDays, label: 'Planning', path: '/planning' },
-    { icon: BarChart, label: 'Analytics', path: '/analytics' },
+    { icon: Home, label: 'Dashboard', path: '/', gerantOnly: false },
+    { icon: Package, label: 'Produits', path: '/products', gerantOnly: true },
+    { icon: LogOut, label: 'Sorties', path: '/outputs', gerantOnly: false },
+    { icon: Truck, label: 'Livraisons', path: '/deliveries', gerantOnly: true },
+    { icon: Users, label: 'Fournisseurs', path: '/suppliers', gerantOnly: true },
+    { icon: Thermometer, label: 'Temperatures', path: '/temperatures', gerantOnly: false },
+    { icon: ChefHat, label: 'Recettes', path: '/recipes', gerantOnly: false },
+    { icon: ClipboardList, label: 'Menus', path: '/menus', gerantOnly: false },
+    { icon: Calculator, label: 'Production', path: '/production', gerantOnly: true },
+    { icon: Camera, label: 'Tracabilite', path: '/traceability', gerantOnly: false },
+    { icon: CalendarDays, label: 'Planning', path: '/planning', gerantOnly: false },
+    { icon: BarChart, label: 'Analytics', path: '/analytics', gerantOnly: true },
 ];
 
 export function Layout() {
@@ -33,27 +33,29 @@ export function Layout() {
         navigate('/login');
     };
 
-    const renderNavLinks = () => navItems.map((item) => {
-        const Icon = item.icon;
-        const isActive = location.pathname === item.path;
+    const renderNavLinks = () => navItems
+        .filter(item => !item.gerantOnly || isGerant)
+        .map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
 
-        return (
-            <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileMenuOpen(false)}
-                className={cn(
-                    "flex items-center gap-3 px-3 py-3 md:py-2 rounded-md text-base md:text-sm font-medium transition-colors",
-                    isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-            >
-                <Icon className="w-4 h-4" />
-                {item.label}
-            </Link>
-        );
-    });
+            return (
+                <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                        "flex items-center gap-3 px-3 py-3 md:py-2 rounded-md text-base md:text-sm font-medium transition-colors",
+                        isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                >
+                    <Icon className="w-4 h-4" />
+                    {item.label}
+                </Link>
+            );
+        });
 
     return (
         <div className="flex h-screen bg-background">

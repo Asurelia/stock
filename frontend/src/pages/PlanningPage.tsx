@@ -13,6 +13,7 @@ import {
     STAFF_GROUPS,
     WEEK_DAYS
 } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -73,6 +74,8 @@ const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
 
 export function PlanningPage() {
     const queryClient = useQueryClient()
+    const { isGerant } = useAuth()
+    const canEdit = isGerant // Seul le gérant peut modifier le planning
     const [activeTab, setActiveTab] = useState('calendar')
     const [currentDate, setCurrentDate] = useState(new Date())
     const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null)
@@ -274,6 +277,7 @@ export function PlanningPage() {
     }
 
     const handleAddEvent = (staffId: string, date: Date) => {
+        if (!canEdit) return // Lecture seule pour non-gérants
         const dateStr = formatDate(date)
         setEventForm({
             ...eventForm,
@@ -285,6 +289,7 @@ export function PlanningPage() {
     }
 
     const handleEditEvent = (event: ScheduleEvent) => {
+        if (!canEdit) return // Lecture seule pour non-gérants
         setEditingEvent(event)
         setEventForm({
             staffId: event.staffId,
@@ -600,10 +605,12 @@ export function PlanningPage() {
                         <Download className="h-4 w-4 mr-2" />
                         Exporter
                     </Button>
-                    <Button onClick={() => setIsStaffDialogOpen(true)}>
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Collaborateur
-                    </Button>
+                    {canEdit && (
+                        <Button onClick={() => setIsStaffDialogOpen(true)}>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Collaborateur
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -652,23 +659,27 @@ export function PlanningPage() {
                                     >
                                         Aujourd'hui
                                     </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={handleClearWeek}
-                                        title="Vider la semaine (Supprimer tous les événements)"
-                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={handleGeneratePlanning}
-                                        title="Générer planning auto"
-                                    >
-                                        <Wand2 className="h-4 w-4 text-primary" />
-                                    </Button>
+                                    {canEdit && (
+                                        <>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={handleClearWeek}
+                                                title="Vider la semaine (Supprimer tous les événements)"
+                                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={handleGeneratePlanning}
+                                                title="Générer planning auto"
+                                            >
+                                                <Wand2 className="h-4 w-4 text-primary" />
+                                            </Button>
+                                        </>
+                                    )}
                                     <Button
                                         variant="outline"
                                         size="icon"
@@ -689,10 +700,12 @@ export function PlanningPage() {
                                 <Users className="h-12 w-12 mx-auto mb-4 opacity-30" />
                                 <p>Aucun collaborateur</p>
                                 <p className="text-sm mt-2">Ajoutez des collaborateurs pour créer le planning</p>
-                                <Button className="mt-4" onClick={() => setIsStaffDialogOpen(true)}>
-                                    <UserPlus className="h-4 w-4 mr-2" />
-                                    Ajouter un collaborateur
-                                </Button>
+                                {canEdit && (
+                                    <Button className="mt-4" onClick={() => setIsStaffDialogOpen(true)}>
+                                        <UserPlus className="h-4 w-4 mr-2" />
+                                        Ajouter un collaborateur
+                                    </Button>
+                                )}
                             </CardContent>
                         </Card>
                     ) : (
@@ -890,26 +903,28 @@ export function PlanningPage() {
                                             </h3>
                                             <p className="text-muted-foreground">{staff.role}</p>
                                         </div>
-                                        <div className="flex gap-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8"
-                                                onClick={() => handleEditStaff(staff)}
-                                                aria-label={`Modifier ${staff.firstName} ${staff.lastName}`}
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-red-500"
-                                                onClick={() => setConfirmDeleteStaff({ open: true, staff })}
-                                                aria-label={`Supprimer ${staff.firstName} ${staff.lastName}`}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+                                        {canEdit && (
+                                            <div className="flex gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={() => handleEditStaff(staff)}
+                                                    aria-label={`Modifier ${staff.firstName} ${staff.lastName}`}
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-red-500"
+                                                    onClick={() => setConfirmDeleteStaff({ open: true, staff })}
+                                                    aria-label={`Supprimer ${staff.firstName} ${staff.lastName}`}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2 text-sm">
@@ -929,37 +944,41 @@ export function PlanningPage() {
                                         <Badge variant={staff.isActive ? "default" : "secondary"}>
                                             {staff.isActive ? 'Actif' : 'Inactif'}
                                         </Badge>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => {
-                                                setEventForm({
-                                                    ...eventForm,
-                                                    staffId: staff.id,
-                                                    startDate: formatDate(new Date()),
-                                                    endDate: formatDate(new Date())
-                                                })
-                                                setIsEventDialogOpen(true)
-                                            }}
-                                        >
-                                            <Plus className="h-4 w-4 mr-1" />
-                                            Événement
-                                        </Button>
+                                        {canEdit && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setEventForm({
+                                                        ...eventForm,
+                                                        staffId: staff.id,
+                                                        startDate: formatDate(new Date()),
+                                                        endDate: formatDate(new Date())
+                                                    })
+                                                    setIsEventDialogOpen(true)
+                                                }}
+                                            >
+                                                <Plus className="h-4 w-4 mr-1" />
+                                                Événement
+                                            </Button>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
                         ))}
 
                         {/* Add card */}
-                        <Card
-                            className="border-dashed cursor-pointer hover:border-primary transition-colors"
-                            onClick={() => setIsStaffDialogOpen(true)}
-                        >
-                            <CardContent className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground">
-                                <UserPlus className="h-12 w-12 mb-2 opacity-50" />
-                                <span>Ajouter un collaborateur</span>
-                            </CardContent>
-                        </Card>
+                        {canEdit && (
+                            <Card
+                                className="border-dashed cursor-pointer hover:border-primary transition-colors"
+                                onClick={() => setIsStaffDialogOpen(true)}
+                            >
+                                <CardContent className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground">
+                                    <UserPlus className="h-12 w-12 mb-2 opacity-50" />
+                                    <span>Ajouter un collaborateur</span>
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
                 </TabsContent>
             </Tabs>

@@ -49,6 +49,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function GerantOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { isGerant } = useAuth();
+  
+  if (!isGerant) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return <>{children}</>;
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -64,18 +74,18 @@ function AppRoutes() {
       <Route path="/login" element={<Suspense fallback={<FullPageLoader />}><LoginPage /></Suspense>} />
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
-        <Route path="/products" element={<Suspense fallback={<PageLoader />}><ProductsPage /></Suspense>} />
+        <Route path="/products" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><ProductsPage /></Suspense></GerantOnlyRoute>} />
         <Route path="/outputs" element={<Suspense fallback={<PageLoader />}><OutputsPage /></Suspense>} />
-        <Route path="/deliveries" element={<Suspense fallback={<PageLoader />}><DeliveriesPage /></Suspense>} />
-        <Route path="/suppliers" element={<Suspense fallback={<PageLoader />}><SuppliersPage /></Suspense>} />
+        <Route path="/deliveries" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><DeliveriesPage /></Suspense></GerantOnlyRoute>} />
+        <Route path="/suppliers" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><SuppliersPage /></Suspense></GerantOnlyRoute>} />
         <Route path="/temperatures" element={<Suspense fallback={<PageLoader />}><TemperaturesPage /></Suspense>} />
         <Route path="/recipes" element={<Suspense fallback={<PageLoader />}><RecipesPage /></Suspense>} />
         <Route path="/menus" element={<Suspense fallback={<PageLoader />}><MenusPage /></Suspense>} />
-        <Route path="/production" element={<Suspense fallback={<PageLoader />}><ProductionPage /></Suspense>} />
+        <Route path="/production" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><ProductionPage /></Suspense></GerantOnlyRoute>} />
         <Route path="/traceability" element={<Suspense fallback={<PageLoader />}><TraceabilityArchivePage /></Suspense>} />
         <Route path="/planning" element={<Suspense fallback={<PageLoader />}><PlanningPage /></Suspense>} />
-        <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsPage /></Suspense>} />
-        <Route path="/users" element={<Suspense fallback={<PageLoader />}><UsersPage /></Suspense>} />
+        <Route path="/analytics" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><AnalyticsPage /></Suspense></GerantOnlyRoute>} />
+        <Route path="/users" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><UsersPage /></Suspense></GerantOnlyRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

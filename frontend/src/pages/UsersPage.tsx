@@ -375,7 +375,6 @@ export function UsersPage() {
             </Card>
 
             {/* Create/Edit Dialog */}
-            {isDialogOpen && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
@@ -526,7 +525,6 @@ export function UsersPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            )}
 
             {/* Delete Confirmation Dialog */}
             <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
