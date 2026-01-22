@@ -228,6 +228,47 @@ export const recurringOutputsApi = {
             return recurringOutputsApi.daily.getForDate(date)
         },
 
+        // Sync today's outputs with global config (add new configs, keep existing)
+        syncForDate: async (date: string): Promise<DailyRecurringOutput[]> => {
+            const supabase = getSupabase() as ReturnType<typeof getSupabase>
+            
+            // Get existing daily outputs
+            const existingOutputs = await recurringOutputsApi.daily.getForDate(date)
+            
+            // Get active configs
+            const { data: configs, error: configError } = await supabase
+                .from('recurring_output_configs' as 'products')
+                .select('*')
+                .eq('is_active', true)
+
+            if (configError) throw configError
+
+            const configsList = (configs || []) as unknown as RecurringConfigRow[]
+            
+            // Find configs that don't have a daily output yet
+            const newEntries = configsList.filter(config => 
+                !existingOutputs.some(o => 
+                    o.category === config.category && o.productId === config.product_id
+                )
+            ).map(c => ({
+                date,
+                category: c.category,
+                product_id: c.product_id,
+                quantity: c.quantity,
+                is_executed: false
+            }))
+
+            if (newEntries.length > 0) {
+                const { error: insertError } = await supabase
+                    .from('daily_recurring_outputs' as 'products')
+                    .insert(newEntries as never)
+
+                if (insertError) throw insertError
+            }
+
+            return recurringOutputsApi.daily.getForDate(date)
+        },
+
         updateQuantity: async (id: string, quantity: number): Promise<void> => {
             const { error } = await (getSupabase() as ReturnType<typeof getSupabase>)
                 .from('daily_recurring_outputs' as 'products')

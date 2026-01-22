@@ -52,10 +52,10 @@ export function OutputsPage() {
         queryFn: api.recurringOutputs.configs.getAll
     })
     
-    // Fetch today's daily outputs (initialize if needed)
+    // Fetch today's daily outputs (sync with global config)
     const { data: todayDailyOutputs = [], refetch: refetchDailyOutputs } = useQuery({
         queryKey: ['daily-recurring', todayDate],
-        queryFn: () => api.recurringOutputs.daily.initializeForDate(todayDate)
+        queryFn: () => api.recurringOutputs.daily.syncForDate(todayDate)
     })
 
     const { data: products = [], isLoading: loadingProducts } = useQuery({
