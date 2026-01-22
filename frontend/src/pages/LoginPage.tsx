@@ -95,7 +95,7 @@ export function LoginPage() {
         setIsLoggingIn(true)
         setError('')
 
-        const result = await login(pin)
+        const result = await login(pin, selectedUser?.id)
         
         if (result.success) {
             navigate('/', { replace: true })

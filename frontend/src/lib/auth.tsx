@@ -17,7 +17,7 @@ interface AuthContextType {
     isLoading: boolean
     isAuthenticated: boolean
     isGerant: boolean
-    login: (pinCode: string) => Promise<{ success: boolean; error?: string }>
+    login: (pinCode: string, userId?: string) => Promise<{ success: boolean; error?: string }>
     logout: () => void
     refreshUser: () => Promise<void>
 }
@@ -72,18 +72,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loadUserFromStorage()
     }, [loadUserFromStorage])
 
-    const login = async (pinCode: string): Promise<{ success: boolean; error?: string }> => {
+    const login = async (pinCode: string, userId?: string): Promise<{ success: boolean; error?: string }> => {
         if (!supabase) {
             return { success: false, error: 'Connexion à la base de données non disponible' }
         }
 
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('user_profiles')
                 .select('id, display_name, role, avatar_emoji, staff_id, is_active')
                 .eq('pin_code', pinCode)
                 .eq('is_active', true)
-                .single()
+            
+            // If userId is provided, verify PIN matches that specific user
+            if (userId) {
+                query = query.eq('id', userId)
+            }
+            
+            const { data, error } = await query.single()
 
             if (error || !data) {
                 return { success: false, error: 'Code PIN invalide' }
