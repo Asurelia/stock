@@ -21,6 +21,277 @@ export const DAILY_OUTPUT_CATEGORIES = [
     { id: 'repas-perso', label: 'Repas perso jour', reason: 'Repas perso jour', icon: '🍽️', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
 ] as const
 
+export type DailyOutputCategory = typeof DAILY_OUTPUT_CATEGORIES[number]['id']
+
+export interface RecurringOutputConfig {
+    id: string
+    category: DailyOutputCategory
+    productId: string
+    productName?: string
+    quantity: number
+    isActive: boolean
+    createdAt: string
+}
+
+export interface DailyRecurringOutput {
+    id: string
+    date: string
+    category: DailyOutputCategory
+    productId: string
+    productName?: string
+    quantity: number
+    isExecuted: boolean
+    executedAt?: string | null
+    outputId?: string | null
+}
+
+// Note: Ces tables doivent être créées via la migration 20260122_recurring_outputs.sql
+// Les types sont définis manuellement car les tables ne sont pas encore dans database.types.ts
+
+type RecurringConfigRow = {
+    id: string
+    category: string
+    product_id: string
+    quantity: number
+    is_active: boolean
+    created_at: string
+    products?: { name: string } | null
+}
+
+type DailyRecurringRow = {
+    id: string
+    date: string
+    category: string
+    product_id: string
+    quantity: number
+    is_executed: boolean
+    executed_at: string | null
+    output_id: string | null
+    products?: { name: string } | null
+}
+
+export const recurringOutputsApi = {
+    // =========================================
+    // Recurring Output Configs (global settings)
+    // =========================================
+    configs: {
+        getAll: async (): Promise<RecurringOutputConfig[]> => {
+            const { data, error } = await (getSupabase() as ReturnType<typeof getSupabase>)
+                .from('recurring_output_configs' as 'products')
+                .select(`*, products (name)`)
+                .order('category')
+                .order('created_at')
+
+            if (error) throw error
+            return ((data || []) as unknown as RecurringConfigRow[]).map(c => ({
+                id: c.id,
+                category: c.category as DailyOutputCategory,
+                productId: c.product_id,
+                productName: c.products?.name,
+                quantity: Number(c.quantity),
+                isActive: c.is_active ?? true,
+                createdAt: c.created_at
+            }))
+        },
+
+        getByCategory: async (category: DailyOutputCategory): Promise<RecurringOutputConfig[]> => {
+            const { data, error } = await (getSupabase() as ReturnType<typeof getSupabase>)
+                .from('recurring_output_configs' as 'products')
+                .select(`*, products (name)`)
+                .eq('category', category)
+                .eq('is_active', true)
+                .order('created_at')
+
+            if (error) throw error
+            return ((data || []) as unknown as RecurringConfigRow[]).map(c => ({
+                id: c.id,
+                category: c.category as DailyOutputCategory,
+                productId: c.product_id,
+                productName: c.products?.name,
+                quantity: Number(c.quantity),
+                isActive: c.is_active ?? true,
+                createdAt: c.created_at
+            }))
+        },
+
+        upsert: async (config: { category: DailyOutputCategory; productId: string; quantity: number }): Promise<RecurringOutputConfig> => {
+            const { data, error } = await (getSupabase() as ReturnType<typeof getSupabase>)
+                .from('recurring_output_configs' as 'products')
+                .upsert({
+                    category: config.category,
+                    product_id: config.productId,
+                    quantity: config.quantity,
+                    is_active: true
+                } as never, { onConflict: 'category,product_id' })
+                .select()
+                .single()
+
+            if (error) throw error
+            const row = data as unknown as RecurringConfigRow
+            return {
+                id: row.id,
+                category: row.category as DailyOutputCategory,
+                productId: row.product_id,
+                quantity: Number(row.quantity),
+                isActive: row.is_active ?? true,
+                createdAt: row.created_at
+            }
+        },
+
+        delete: async (id: string): Promise<void> => {
+            const { error } = await (getSupabase() as ReturnType<typeof getSupabase>)
+                .from('recurring_output_configs' as 'products')
+                .delete()
+                .eq('id', id)
+
+            if (error) throw error
+        },
+
+        updateQuantity: async (id: string, quantity: number): Promise<void> => {
+            const { error } = await (getSupabase() as ReturnType<typeof getSupabase>)
+                .from('recurring_output_configs' as 'products')
+                .update({ quantity } as never)
+                .eq('id', id)
+
+            if (error) throw error
+        }
+    },
+
+    // =========================================
+    // Daily Recurring Outputs (day-by-day)
+    // =========================================
+    daily: {
+        getForDate: async (date: string): Promise<DailyRecurringOutput[]> => {
+            const { data, error } = await (getSupabase() as ReturnType<typeof getSupabase>)
+                .from('daily_recurring_outputs' as 'products')
+                .select(`*, products (name)`)
+                .eq('date', date)
+                .order('category')
+
+            if (error) throw error
+            return ((data || []) as unknown as DailyRecurringRow[]).map(d => ({
+                id: d.id,
+                date: d.date,
+                category: d.category as DailyOutputCategory,
+                productId: d.product_id,
+                productName: d.products?.name,
+                quantity: Number(d.quantity),
+                isExecuted: d.is_executed ?? false,
+                executedAt: d.executed_at,
+                outputId: d.output_id
+            }))
+        },
+
+        // Initialize today's outputs from global config (if not already done)
+        initializeForDate: async (date: string): Promise<DailyRecurringOutput[]> => {
+            const supabase = getSupabase() as ReturnType<typeof getSupabase>
+            
+            // Check if already initialized
+            const { data: existing } = await supabase
+                .from('daily_recurring_outputs' as 'products')
+                .select('id')
+                .eq('date', date)
+                .limit(1)
+
+            if (existing && existing.length > 0) {
+                // Already initialized, return current data
+                return recurringOutputsApi.daily.getForDate(date)
+            }
+
+            // Get active configs
+            const { data: configs, error: configError } = await supabase
+                .from('recurring_output_configs' as 'products')
+                .select('*')
+                .eq('is_active', true)
+
+            if (configError) throw configError
+
+            if (!configs || configs.length === 0) {
+                return []
+            }
+
+            // Create daily entries
+            const dailyEntries = (configs as unknown as RecurringConfigRow[]).map(c => ({
+                date,
+                category: c.category,
+                product_id: c.product_id,
+                quantity: c.quantity,
+                is_executed: false
+            }))
+
+            const { error: insertError } = await supabase
+                .from('daily_recurring_outputs' as 'products')
+                .insert(dailyEntries as never)
+
+            if (insertError) throw insertError
+
+            return recurringOutputsApi.daily.getForDate(date)
+        },
+
+        updateQuantity: async (id: string, quantity: number): Promise<void> => {
+            const { error } = await (getSupabase() as ReturnType<typeof getSupabase>)
+                .from('daily_recurring_outputs' as 'products')
+                .update({ quantity } as never)
+                .eq('id', id)
+
+            if (error) throw error
+        },
+
+        // Execute a single daily output (create actual output and deduct stock)
+        execute: async (dailyOutput: DailyRecurringOutput): Promise<void> => {
+            const supabase = getSupabase() as ReturnType<typeof getSupabase>
+            const category = DAILY_OUTPUT_CATEGORIES.find(c => c.id === dailyOutput.category)
+            if (!category) throw new Error('Invalid category')
+
+            // Create the actual output
+            const output = await traceabilityApi.outputs.create({
+                productId: dailyOutput.productId,
+                quantity: dailyOutput.quantity,
+                reason: category.reason,
+                date: new Date().toISOString()
+            })
+
+            // Mark as executed
+            const { error } = await supabase
+                .from('daily_recurring_outputs' as 'products')
+                .update({
+                    is_executed: true,
+                    executed_at: new Date().toISOString(),
+                    output_id: output.id
+                } as never)
+                .eq('id', dailyOutput.id)
+
+            if (error) throw error
+        },
+
+        // Execute all pending outputs for a category
+        executeCategory: async (date: string, category: DailyOutputCategory): Promise<number> => {
+            const outputs = await recurringOutputsApi.daily.getForDate(date)
+            const pending = outputs.filter(o => o.category === category && !o.isExecuted)
+            
+            let executed = 0
+            for (const output of pending) {
+                await recurringOutputsApi.daily.execute(output)
+                executed++
+            }
+            return executed
+        },
+
+        // Execute all pending outputs for the day
+        executeAll: async (date: string): Promise<number> => {
+            const outputs = await recurringOutputsApi.daily.getForDate(date)
+            const pending = outputs.filter(o => !o.isExecuted)
+            
+            let executed = 0
+            for (const output of pending) {
+                await recurringOutputsApi.daily.execute(output)
+                executed++
+            }
+            return executed
+        }
+    }
+}
+
 export interface Output {
     id: string
     productId: string

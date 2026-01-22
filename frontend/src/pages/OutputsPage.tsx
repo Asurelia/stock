@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { api, type Product, DAILY_OUTPUT_CATEGORIES } from "@/lib/api"
+import { api, type Product, DAILY_OUTPUT_CATEGORIES, type DailyOutputCategory, type RecurringOutputConfig } from "@/lib/api"
 import { format, subDays } from "date-fns"
 import { fr } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { Loader2, Trash2, Calendar, Package, Zap, Camera, Grid3X3, Coffee, Plus, Minus } from "lucide-react"
+import { Loader2, Trash2, Calendar, Package, Zap, Camera, Grid3X3, Coffee, Plus, Minus, Settings, Play, Check } from "lucide-react"
 import { toast } from "sonner"
 import { StreamDeckGrid, OutputDialog, TraceabilityTab, getProductEmoji } from "@/components/outputs"
 import {
@@ -40,6 +40,23 @@ export function OutputsPage() {
     // Daily outputs dialog
     const [isDailyDialogOpen, setIsDailyDialogOpen] = useState(false)
     const [selectedDailyCategory, setSelectedDailyCategory] = useState<DailyCategory | null>(null)
+    
+    // Recurring outputs config dialog
+    const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false)
+    
+    const todayDate = format(new Date(), 'yyyy-MM-dd')
+    
+    // Fetch recurring configs
+    const { data: recurringConfigs = [] } = useQuery({
+        queryKey: ['recurring-configs'],
+        queryFn: api.recurringOutputs.configs.getAll
+    })
+    
+    // Fetch today's daily outputs (initialize if needed)
+    const { data: todayDailyOutputs = [], refetch: refetchDailyOutputs } = useQuery({
+        queryKey: ['daily-recurring', todayDate],
+        queryFn: () => api.recurringOutputs.daily.initializeForDate(todayDate)
+    })
 
     const { data: products = [], isLoading: loadingProducts } = useQuery({
         queryKey: ['products'],
@@ -150,30 +167,90 @@ export function OutputsPage() {
 
                 {/* Sorties Tab */}
                 <TabsContent value="sorties" className="space-y-6">
-                    {/* Daily Quick Outputs */}
+                    {/* Daily Recurring Outputs */}
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle className="flex items-center gap-2">
                                 <Coffee className="h-5 w-5 text-amber-500" />
-                                Sorties journalières
+                                Sorties journalières récurrentes
                             </CardTitle>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsConfigDialogOpen(true)}
+                            >
+                                <Settings className="h-4 w-4 mr-2" />
+                                Configurer
+                            </Button>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                {DAILY_OUTPUT_CATEGORIES.map((category) => (
-                                    <Button
-                                        key={category.id}
-                                        variant="outline"
-                                        className={`h-auto py-4 flex flex-col items-center gap-2 hover:scale-105 transition-transform ${category.color}`}
-                                        onClick={() => {
-                                            setSelectedDailyCategory(category)
-                                            setIsDailyDialogOpen(true)
-                                        }}
-                                    >
-                                        <span className="text-3xl">{category.icon}</span>
-                                        <span className="font-medium text-sm">{category.label}</span>
-                                    </Button>
-                                ))}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {DAILY_OUTPUT_CATEGORIES.map((category) => {
+                                    const categoryOutputs = todayDailyOutputs.filter(o => o.category === category.id)
+                                    const pendingCount = categoryOutputs.filter(o => !o.isExecuted).length
+                                    const executedCount = categoryOutputs.filter(o => o.isExecuted).length
+                                    const totalCount = categoryOutputs.length
+                                    const allExecuted = totalCount > 0 && pendingCount === 0
+                                    
+                                    return (
+                                        <div
+                                            key={category.id}
+                                            className={`p-4 rounded-lg border ${category.color} ${allExecuted ? 'opacity-60' : ''}`}
+                                        >
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-2xl">{category.icon}</span>
+                                                    <span className="font-medium">{category.label}</span>
+                                                </div>
+                                                {allExecuted && <Check className="h-5 w-5 text-green-600" />}
+                                            </div>
+                                            
+                                            {totalCount === 0 ? (
+                                                <p className="text-sm text-muted-foreground mb-3">
+                                                    Aucun produit configuré
+                                                </p>
+                                            ) : (
+                                                <p className="text-sm mb-3">
+                                                    {executedCount}/{totalCount} exécuté(s)
+                                                </p>
+                                            )}
+                                            
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="flex-1"
+                                                    onClick={() => {
+                                                        setSelectedDailyCategory(category)
+                                                        setIsDailyDialogOpen(true)
+                                                    }}
+                                                >
+                                                    {totalCount === 0 ? 'Ajouter' : 'Modifier'}
+                                                </Button>
+                                                {pendingCount > 0 && (
+                                                    <Button
+                                                        size="sm"
+                                                        className="flex-1"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const count = await api.recurringOutputs.daily.executeCategory(todayDate, category.id as DailyOutputCategory)
+                                                                toast.success(`${count} sortie(s) exécutée(s)`)
+                                                                refetchDailyOutputs()
+                                                                queryClient.invalidateQueries({ queryKey: ['outputs'] })
+                                                                queryClient.invalidateQueries({ queryKey: ['products'] })
+                                                            } catch {
+                                                                toast.error('Erreur lors de l\'exécution')
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Play className="h-4 w-4 mr-1" />
+                                                        Exécuter
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
                             </div>
                         </CardContent>
                     </Card>
@@ -357,7 +434,7 @@ export function OutputsPage() {
                 isLoading={createMutation.isPending}
             />
 
-            {/* Daily Output Dialog */}
+            {/* Daily Output Dialog - Configure recurring outputs for a category */}
             <DailyOutputDialog
                 category={selectedDailyCategory}
                 open={isDailyDialogOpen}
@@ -366,51 +443,83 @@ export function OutputsPage() {
                     setSelectedDailyCategory(null)
                 }}
                 products={products}
-                onSubmit={(outputs) => {
-                    outputs.forEach(output => {
-                        createMutation.mutate({
-                            productId: output.productId,
-                            quantity: output.quantity,
-                            reason: output.reason,
-                            date: new Date().toISOString()
-                        })
-                    })
-                    setIsDailyDialogOpen(false)
-                    setSelectedDailyCategory(null)
+                existingConfigs={recurringConfigs}
+                onSave={async (configs) => {
+                    try {
+                        // Save each config
+                        for (const config of configs) {
+                            await api.recurringOutputs.configs.upsert(config)
+                        }
+                        toast.success('Configuration sauvegardée')
+                        queryClient.invalidateQueries({ queryKey: ['recurring-configs'] })
+                        queryClient.invalidateQueries({ queryKey: ['daily-recurring'] })
+                        setIsDailyDialogOpen(false)
+                        setSelectedDailyCategory(null)
+                    } catch {
+                        toast.error('Erreur lors de la sauvegarde')
+                    }
                 }}
-                isLoading={createMutation.isPending}
+            />
+
+            {/* Global Config Dialog */}
+            <RecurringConfigDialog
+                open={isConfigDialogOpen}
+                onClose={() => setIsConfigDialogOpen(false)}
+                products={products}
+                configs={recurringConfigs}
+                onConfigChange={() => {
+                    queryClient.invalidateQueries({ queryKey: ['recurring-configs'] })
+                    queryClient.invalidateQueries({ queryKey: ['daily-recurring'] })
+                }}
             />
         </div>
     )
 }
 
-// Daily Output Dialog Component
+// Daily Output Dialog Component - Configure recurring outputs for a category
 function DailyOutputDialog({
     category,
     open,
     onClose,
     products,
-    onSubmit,
-    isLoading
+    existingConfigs,
+    onSave
 }: {
     category: DailyCategory | null
     open: boolean
     onClose: () => void
     products: Product[]
-    onSubmit: (outputs: { productId: string; quantity: number; reason: string }[]) => void
-    isLoading: boolean
+    existingConfigs: RecurringOutputConfig[]
+    onSave: (configs: { category: DailyOutputCategory; productId: string; quantity: number }[]) => Promise<void>
 }) {
     const [selectedProducts, setSelectedProducts] = useState<Map<string, number>>(new Map())
     const [searchQuery, setSearchQuery] = useState('')
+    const [isSaving, setIsSaving] = useState(false)
 
-    // Reset when dialog opens
+    // Initialize from existing configs when dialog opens
     const handleOpenChange = (isOpen: boolean) => {
+        if (isOpen && category) {
+            const categoryConfigs = existingConfigs.filter(c => c.category === category.id)
+            const initialMap = new Map<string, number>()
+            categoryConfigs.forEach(c => initialMap.set(c.productId, c.quantity))
+            setSelectedProducts(initialMap)
+        }
         if (!isOpen) {
             setSelectedProducts(new Map())
             setSearchQuery('')
             onClose()
         }
     }
+
+    // Re-initialize when category changes
+    useState(() => {
+        if (open && category) {
+            const categoryConfigs = existingConfigs.filter(c => c.category === category.id)
+            const initialMap = new Map<string, number>()
+            categoryConfigs.forEach(c => initialMap.set(c.productId, c.quantity))
+            setSelectedProducts(initialMap)
+        }
+    })
 
     const filteredProducts = products.filter(p => 
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -429,16 +538,19 @@ function DailyOutputDialog({
         setSelectedProducts(newMap)
     }
 
-    const handleSubmit = () => {
-        if (!category || selectedProducts.size === 0) return
-        const outputs = Array.from(selectedProducts.entries()).map(([productId, quantity]) => ({
-            productId,
-            quantity,
-            reason: category.reason
-        }))
-        onSubmit(outputs)
-        setSelectedProducts(new Map())
-        setSearchQuery('')
+    const handleSubmit = async () => {
+        if (!category) return
+        setIsSaving(true)
+        try {
+            const configs = Array.from(selectedProducts.entries()).map(([productId, quantity]) => ({
+                category: category.id as DailyOutputCategory,
+                productId,
+                quantity
+            }))
+            await onSave(configs)
+        } finally {
+            setIsSaving(false)
+        }
     }
 
     const totalItems = Array.from(selectedProducts.values()).reduce((sum, qty) => sum + qty, 0)
@@ -451,9 +563,13 @@ function DailyOutputDialog({
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <span className="text-2xl">{category.icon}</span>
-                        {category.label}
+                        {category.label} - Configuration
                     </DialogTitle>
                 </DialogHeader>
+
+                <p className="text-sm text-muted-foreground">
+                    Configurez les produits qui sortiront automatiquement chaque jour pour "{category.label}".
+                </p>
 
                 <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
                     {/* Search */}
@@ -464,7 +580,7 @@ function DailyOutputDialog({
                     />
 
                     {/* Products list */}
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-[300px]">
                         {filteredProducts.map(product => {
                             const quantity = selectedProducts.get(product.id) || 0
                             return (
@@ -499,7 +615,6 @@ function DailyOutputDialog({
                                             size="icon"
                                             className="h-8 w-8"
                                             onClick={() => updateQuantity(product.id, 1)}
-                                            disabled={product.quantity <= quantity}
                                         >
                                             <Plus className="h-4 w-4" />
                                         </Button>
@@ -513,7 +628,7 @@ function DailyOutputDialog({
                     {selectedProducts.size > 0 && (
                         <div className={`p-3 rounded-lg ${category.color}`}>
                             <p className="font-medium">
-                                {selectedProducts.size} produit(s) sélectionné(s) - {totalItems} unité(s)
+                                {selectedProducts.size} produit(s) configuré(s) - {totalItems} unité(s)/jour
                             </p>
                         </div>
                     )}
@@ -525,10 +640,105 @@ function DailyOutputDialog({
                     </Button>
                     <Button 
                         onClick={handleSubmit} 
-                        disabled={selectedProducts.size === 0 || isLoading}
+                        disabled={isSaving}
                     >
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                        Enregistrer ({totalItems})
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Sauvegarder
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+// Global Recurring Config Dialog
+function RecurringConfigDialog({
+    open,
+    onClose,
+    products,
+    configs,
+    onConfigChange
+}: {
+    open: boolean
+    onClose: () => void
+    products: Product[]
+    configs: RecurringOutputConfig[]
+    onConfigChange: () => void
+}) {
+    const handleDelete = async (configId: string) => {
+        try {
+            await api.recurringOutputs.configs.delete(configId)
+            toast.success('Configuration supprimée')
+            onConfigChange()
+        } catch {
+            toast.error('Erreur lors de la suppression')
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Settings className="h-5 w-5" />
+                        Configuration des sorties récurrentes
+                    </DialogTitle>
+                </DialogHeader>
+
+                <p className="text-sm text-muted-foreground">
+                    Gérez les produits qui sortent automatiquement chaque jour. Ces configurations s'appliquent à tous les jours futurs.
+                </p>
+
+                <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+                    {DAILY_OUTPUT_CATEGORIES.map(category => {
+                        const categoryConfigs = configs.filter(c => c.category === category.id)
+                        
+                        return (
+                            <div key={category.id} className={`p-4 rounded-lg border ${category.color}`}>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="text-xl">{category.icon}</span>
+                                    <h3 className="font-semibold">{category.label}</h3>
+                                    <Badge variant="secondary" className="ml-auto">
+                                        {categoryConfigs.length} produit(s)
+                                    </Badge>
+                                </div>
+                                
+                                {categoryConfigs.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        Aucun produit configuré
+                                    </p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {categoryConfigs.map(config => {
+                                            const product = products.find(p => p.id === config.productId)
+                                            return (
+                                                <div key={config.id} className="flex items-center justify-between bg-background/50 p-2 rounded">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{product ? getProductEmoji(product) : '📦'}</span>
+                                                        <span className="font-medium">{config.productName || product?.name}</span>
+                                                        <Badge variant="outline">{config.quantity} {product?.unit || 'unité(s)'}</Badge>
+                                                    </div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-destructive"
+                                                        onClick={() => handleDelete(config.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+
+                <DialogFooter>
+                    <Button onClick={onClose}>
+                        Fermer
                     </Button>
                 </DialogFooter>
             </DialogContent>

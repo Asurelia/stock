@@ -16,6 +16,8 @@ export * from './temperature'
 export * from './traceability'
 export * from './inventory'
 
+import { recurringOutputsApi } from './traceability'
+
 export const api = {
     products: productsApi,
     recipes: recipesApi,
@@ -27,6 +29,7 @@ export const api = {
     temperatureReadings: temperatureApi.temperatureReadings,
     traceabilityPhotos: traceabilityApi.traceabilityPhotos,
     outputs: traceabilityApi.outputs,
+    recurringOutputs: recurringOutputsApi,
     suppliers: inventoryApi.suppliers,
     deliveries: inventoryApi.deliveries,
     analytics: analyticsApi
