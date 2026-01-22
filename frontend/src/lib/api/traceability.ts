@@ -4,10 +4,21 @@ import type { TraceabilityPhoto } from '../database.types'
 export const OUTPUT_REASONS = [
     'Service midi',
     'Service soir',
+    'Petit déjeuner',
+    'Petit déjeuner perso',
+    'Goûter clinique',
+    'Repas perso jour',
     'Perte',
     'Casse',
     'Péremption',
     'Autre'
+] as const
+
+export const DAILY_OUTPUT_CATEGORIES = [
+    { id: 'petit-dej', label: 'Petit déjeuner', reason: 'Petit déjeuner', icon: '🥐', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
+    { id: 'petit-dej-perso', label: 'Petit déj perso', reason: 'Petit déjeuner perso', icon: '🍳', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' },
+    { id: 'gouter', label: 'Goûter clinique', reason: 'Goûter clinique', icon: '🍪', color: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300' },
+    { id: 'repas-perso', label: 'Repas perso jour', reason: 'Repas perso jour', icon: '🍽️', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
 ] as const
 
 export interface Output {

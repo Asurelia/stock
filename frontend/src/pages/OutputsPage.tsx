@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { api, type Product } from "@/lib/api"
+import { api, type Product, DAILY_OUTPUT_CATEGORIES } from "@/lib/api"
 import { format, subDays } from "date-fns"
 import { fr } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
@@ -16,9 +16,18 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { Loader2, Trash2, Calendar, Package, Zap, Camera, Grid3X3 } from "lucide-react"
+import { Loader2, Trash2, Calendar, Package, Zap, Camera, Grid3X3, Coffee, Plus, Minus } from "lucide-react"
 import { toast } from "sonner"
 import { StreamDeckGrid, OutputDialog, TraceabilityTab, getProductEmoji } from "@/components/outputs"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog"
+
+type DailyCategory = typeof DAILY_OUTPUT_CATEGORIES[number]
 
 export function OutputsPage() {
     const queryClient = useQueryClient()
@@ -27,6 +36,10 @@ export function OutputsPage() {
     const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
     const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'))
     const [activeTab, setActiveTab] = useState("sorties")
+    
+    // Daily outputs dialog
+    const [isDailyDialogOpen, setIsDailyDialogOpen] = useState(false)
+    const [selectedDailyCategory, setSelectedDailyCategory] = useState<DailyCategory | null>(null)
 
     const { data: products = [], isLoading: loadingProducts } = useQuery({
         queryKey: ['products'],
@@ -137,6 +150,34 @@ export function OutputsPage() {
 
                 {/* Sorties Tab */}
                 <TabsContent value="sorties" className="space-y-6">
+                    {/* Daily Quick Outputs */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Coffee className="h-5 w-5 text-amber-500" />
+                                Sorties journalières
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {DAILY_OUTPUT_CATEGORIES.map((category) => (
+                                    <Button
+                                        key={category.id}
+                                        variant="outline"
+                                        className={`h-auto py-4 flex flex-col items-center gap-2 hover:scale-105 transition-transform ${category.color}`}
+                                        onClick={() => {
+                                            setSelectedDailyCategory(category)
+                                            setIsDailyDialogOpen(true)
+                                        }}
+                                    >
+                                        <span className="text-3xl">{category.icon}</span>
+                                        <span className="font-medium text-sm">{category.label}</span>
+                                    </Button>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+
                     {/* StreamDeck Grid */}
                     <Card>
                         <CardHeader>
@@ -315,6 +356,182 @@ export function OutputsPage() {
                 onSubmit={handleSubmitOutput}
                 isLoading={createMutation.isPending}
             />
+
+            {/* Daily Output Dialog */}
+            <DailyOutputDialog
+                category={selectedDailyCategory}
+                open={isDailyDialogOpen}
+                onClose={() => {
+                    setIsDailyDialogOpen(false)
+                    setSelectedDailyCategory(null)
+                }}
+                products={products}
+                onSubmit={(outputs) => {
+                    outputs.forEach(output => {
+                        createMutation.mutate({
+                            productId: output.productId,
+                            quantity: output.quantity,
+                            reason: output.reason,
+                            date: new Date().toISOString()
+                        })
+                    })
+                    setIsDailyDialogOpen(false)
+                    setSelectedDailyCategory(null)
+                }}
+                isLoading={createMutation.isPending}
+            />
         </div>
+    )
+}
+
+// Daily Output Dialog Component
+function DailyOutputDialog({
+    category,
+    open,
+    onClose,
+    products,
+    onSubmit,
+    isLoading
+}: {
+    category: DailyCategory | null
+    open: boolean
+    onClose: () => void
+    products: Product[]
+    onSubmit: (outputs: { productId: string; quantity: number; reason: string }[]) => void
+    isLoading: boolean
+}) {
+    const [selectedProducts, setSelectedProducts] = useState<Map<string, number>>(new Map())
+    const [searchQuery, setSearchQuery] = useState('')
+
+    // Reset when dialog opens
+    const handleOpenChange = (isOpen: boolean) => {
+        if (!isOpen) {
+            setSelectedProducts(new Map())
+            setSearchQuery('')
+            onClose()
+        }
+    }
+
+    const filteredProducts = products.filter(p => 
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.category.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+
+    const updateQuantity = (productId: string, delta: number) => {
+        const newMap = new Map(selectedProducts)
+        const current = newMap.get(productId) || 0
+        const newValue = Math.max(0, current + delta)
+        if (newValue === 0) {
+            newMap.delete(productId)
+        } else {
+            newMap.set(productId, newValue)
+        }
+        setSelectedProducts(newMap)
+    }
+
+    const handleSubmit = () => {
+        if (!category || selectedProducts.size === 0) return
+        const outputs = Array.from(selectedProducts.entries()).map(([productId, quantity]) => ({
+            productId,
+            quantity,
+            reason: category.reason
+        }))
+        onSubmit(outputs)
+        setSelectedProducts(new Map())
+        setSearchQuery('')
+    }
+
+    const totalItems = Array.from(selectedProducts.values()).reduce((sum, qty) => sum + qty, 0)
+
+    if (!category) return null
+
+    return (
+        <Dialog open={open} onOpenChange={handleOpenChange}>
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <span className="text-2xl">{category.icon}</span>
+                        {category.label}
+                    </DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+                    {/* Search */}
+                    <Input
+                        placeholder="Rechercher un produit..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+
+                    {/* Products list */}
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                        {filteredProducts.map(product => {
+                            const quantity = selectedProducts.get(product.id) || 0
+                            return (
+                                <div
+                                    key={product.id}
+                                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                                        quantity > 0 ? 'bg-primary/10 border-primary' : 'hover:bg-muted'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xl">{getProductEmoji(product)}</span>
+                                        <div>
+                                            <p className="font-medium">{product.name}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Stock: {product.quantity} {product.unit}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => updateQuantity(product.id, -1)}
+                                            disabled={quantity === 0}
+                                        >
+                                            <Minus className="h-4 w-4" />
+                                        </Button>
+                                        <span className="w-8 text-center font-medium">{quantity}</span>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => updateQuantity(product.id, 1)}
+                                            disabled={product.quantity <= quantity}
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+
+                    {/* Summary */}
+                    {selectedProducts.size > 0 && (
+                        <div className={`p-3 rounded-lg ${category.color}`}>
+                            <p className="font-medium">
+                                {selectedProducts.size} produit(s) sélectionné(s) - {totalItems} unité(s)
+                            </p>
+                        </div>
+                    )}
+                </div>
+
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose}>
+                        Annuler
+                    </Button>
+                    <Button 
+                        onClick={handleSubmit} 
+                        disabled={selectedProducts.size === 0 || isLoading}
+                    >
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Enregistrer ({totalItems})
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     )
 }
