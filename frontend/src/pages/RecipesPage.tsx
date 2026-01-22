@@ -53,7 +53,7 @@ export function RecipesPage() {
     const createMutation = useMutation({
         mutationFn: api.recipes.create,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['recipes'] })
+            queryClient.invalidateQueries({ queryKey: ['recipes'], refetchType: 'all' })
             toast.success("Recette créée")
             resetForm()
             setIsDialogOpen(false)
@@ -65,7 +65,7 @@ export function RecipesPage() {
         mutationFn: ({ id, data }: { id: string; data: Partial<Recipe> }) =>
             api.recipes.update(id, data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['recipes'] })
+            queryClient.invalidateQueries({ queryKey: ['recipes'], refetchType: 'all' })
             toast.success("Recette modifiée")
             resetForm()
             setIsDialogOpen(false)
@@ -76,7 +76,7 @@ export function RecipesPage() {
     const deleteMutation = useMutation({
         mutationFn: api.recipes.delete,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['recipes'] })
+            queryClient.invalidateQueries({ queryKey: ['recipes'], refetchType: 'all' })
             toast.success("Recette supprimée")
         },
         onError: () => toast.error("Erreur lors de la suppression")

@@ -60,8 +60,8 @@ export function DeliveriesPage() {
     const createMutation = useMutation({
         mutationFn: api.deliveries.create,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['deliveries'] })
-            queryClient.invalidateQueries({ queryKey: ['products'] })
+            queryClient.invalidateQueries({ queryKey: ['deliveries'], refetchType: 'all' })
+            queryClient.invalidateQueries({ queryKey: ['products'], refetchType: 'all' })
             toast.success("Livraison enregistrée - Stock mis à jour")
             resetForm()
             setIsDialogOpen(false)
@@ -72,8 +72,8 @@ export function DeliveriesPage() {
     const deleteMutation = useMutation({
         mutationFn: api.deliveries.delete,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['deliveries'] })
-            queryClient.invalidateQueries({ queryKey: ['products'] })
+            queryClient.invalidateQueries({ queryKey: ['deliveries'], refetchType: 'all' })
+            queryClient.invalidateQueries({ queryKey: ['products'], refetchType: 'all' })
             toast.success("Livraison supprimée - Stock ajusté")
         },
         onError: () => toast.error("Erreur lors de la suppression")

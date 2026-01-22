@@ -256,7 +256,7 @@ export function TemperaturesPage() {
     const createEquipmentMutation = useMutation({
         mutationFn: api.temperatureEquipment.create,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['temperature-equipment'] });
+            queryClient.invalidateQueries({ queryKey: ['temperature-equipment'], refetchType: 'all' });
             setShowAddEquipment(false);
             resetEquipmentForm();
             toast.success('Equipement ajoute');
@@ -268,7 +268,7 @@ export function TemperaturesPage() {
         mutationFn: ({ id, data }: { id: string; data: Parameters<typeof api.temperatureEquipment.update>[1] }) =>
             api.temperatureEquipment.update(id, data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['temperature-equipment'] });
+            queryClient.invalidateQueries({ queryKey: ['temperature-equipment'], refetchType: 'all' });
             setEditingEquipment(null);
             resetEquipmentForm();
             toast.success('Equipement mis a jour');
@@ -279,7 +279,7 @@ export function TemperaturesPage() {
     const deleteEquipmentMutation = useMutation({
         mutationFn: api.temperatureEquipment.delete,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['temperature-equipment'] });
+            queryClient.invalidateQueries({ queryKey: ['temperature-equipment'], refetchType: 'all' });
             toast.success('Equipement supprime');
         },
         onError: () => toast.error('Erreur lors de la suppression'),
@@ -288,8 +288,8 @@ export function TemperaturesPage() {
     const createReadingMutation = useMutation({
         mutationFn: api.temperatureReadings.create,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['temperature-readings-latest'] });
-            queryClient.invalidateQueries({ queryKey: ['temperature-readings-history'] });
+            queryClient.invalidateQueries({ queryKey: ['temperature-readings-latest'], refetchType: 'all' });
+            queryClient.invalidateQueries({ queryKey: ['temperature-readings-history'], refetchType: 'all' });
             setRecordingFor(null);
             setRecordingTemp(0);
             setRecordingNotes('');

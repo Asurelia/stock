@@ -299,8 +299,8 @@ export function ProductionPage() {
             }
 
             toast.success('Sorties générées avec succès')
-            queryClient.invalidateQueries({ queryKey: ['products'] })
-            queryClient.invalidateQueries({ queryKey: ['outputs'] })
+            queryClient.invalidateQueries({ queryKey: ['products'], refetchType: 'all' })
+            queryClient.invalidateQueries({ queryKey: ['outputs'], refetchType: 'all' })
             setIsOutputDialogOpen(false)
             setPlannedRecipes([])
         } catch (error) {

@@ -40,7 +40,7 @@ export function ProductsPage() {
     const deleteMutation = useMutation({
         mutationFn: api.products.delete,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['products'] })
+            queryClient.invalidateQueries({ queryKey: ['products'], refetchType: 'all' })
             toast.success("Produit supprimé")
         },
         onError: () => toast.error("Erreur lors de la suppression")
@@ -50,7 +50,7 @@ export function ProductsPage() {
         mutationFn: ({ id, quantity }: { id: string, quantity: number }) =>
             api.products.update(id, { quantity }),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['products'] })
+            queryClient.invalidateQueries({ queryKey: ['products'], refetchType: 'all' })
         },
         onError: () => toast.error("Erreur mise à jour stock")
     })
@@ -277,7 +277,7 @@ export function ProductsPage() {
                 <Button
                     variant="outline"
                     className="mt-4"
-                    onClick={() => queryClient.invalidateQueries({ queryKey: ['products'] })}
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['products'], refetchType: 'all' })}
                 >
                     Réessayer
                 </Button>

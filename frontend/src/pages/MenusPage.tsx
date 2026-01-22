@@ -78,7 +78,7 @@ export function MenusPage() {
     const createMenuMutation = useMutation({
         mutationFn: api.menus.create,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['menus'] })
+            queryClient.invalidateQueries({ queryKey: ['menus'], refetchType: 'all' })
             toast.success("Menu créé")
             resetForm()
             setShowAddMenu(false)
@@ -89,7 +89,7 @@ export function MenusPage() {
     const deleteMenuMutation = useMutation({
         mutationFn: api.menus.delete,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['menus'] })
+            queryClient.invalidateQueries({ queryKey: ['menus'], refetchType: 'all' })
             toast.success("Menu supprimé")
         },
         onError: () => toast.error("Erreur lors de la suppression")
@@ -99,7 +99,7 @@ export function MenusPage() {
         mutationFn: ({ menuId, recipeId, servings }: { menuId: string; recipeId: string; servings: number }) =>
             api.menus.addRecipe(menuId, recipeId, servings),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['menus'] })
+            queryClient.invalidateQueries({ queryKey: ['menus'], refetchType: 'all' })
             toast.success("Recette ajoutée")
             setShowAddRecipe(null)
             setSelectedRecipeId("")
@@ -111,7 +111,7 @@ export function MenusPage() {
     const removeRecipeMutation = useMutation({
         mutationFn: api.menus.removeRecipe,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['menus'] })
+            queryClient.invalidateQueries({ queryKey: ['menus'], refetchType: 'all' })
             toast.success("Recette retirée")
         },
         onError: () => toast.error("Erreur lors de la suppression")

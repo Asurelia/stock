@@ -141,7 +141,7 @@ export function PlanningPage() {
     const createStaffMutation = useMutation({
         mutationFn: api.staff.create,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['staff'] })
+            queryClient.invalidateQueries({ queryKey: ['staff'], refetchType: 'all' })
             toast.success('Collaborateur ajouté')
             setIsStaffDialogOpen(false)
             resetStaffForm()
@@ -153,7 +153,7 @@ export function PlanningPage() {
         mutationFn: ({ id, data }: { id: string; data: Partial<Staff> }) =>
             api.staff.update(id, data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['staff'] })
+            queryClient.invalidateQueries({ queryKey: ['staff'], refetchType: 'all' })
             toast.success('Collaborateur modifié')
             setIsStaffDialogOpen(false)
             resetStaffForm()
@@ -164,7 +164,7 @@ export function PlanningPage() {
     const deleteStaffMutation = useMutation({
         mutationFn: api.staff.delete,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['staff'] })
+            queryClient.invalidateQueries({ queryKey: ['staff'], refetchType: 'all' })
             toast.success('Collaborateur supprimé')
         },
         onError: () => toast.error('Erreur lors de la suppression')
@@ -173,7 +173,7 @@ export function PlanningPage() {
     const createEventMutation = useMutation({
         mutationFn: api.scheduleEvents.create,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['schedule-events'] })
+            queryClient.invalidateQueries({ queryKey: ['schedule-events'], refetchType: 'all' })
             toast.success('Événement ajouté')
             setIsEventDialogOpen(false)
             resetEventForm()
@@ -185,7 +185,7 @@ export function PlanningPage() {
         mutationFn: ({ id, data }: { id: string; data: Partial<ScheduleEvent> }) =>
             api.scheduleEvents.update(id, data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['schedule-events'] })
+            queryClient.invalidateQueries({ queryKey: ['schedule-events'], refetchType: 'all' })
             toast.success('Événement modifié')
             setIsEventDialogOpen(false)
             resetEventForm()
@@ -196,7 +196,7 @@ export function PlanningPage() {
     const deleteEventMutation = useMutation({
         mutationFn: api.scheduleEvents.delete,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['schedule-events'] })
+            queryClient.invalidateQueries({ queryKey: ['schedule-events'], refetchType: 'all' })
             toast.success('Événement supprimé')
         },
         onError: () => toast.error('Erreur lors de la suppression')
@@ -426,7 +426,7 @@ export function PlanningPage() {
             })
 
             await Promise.all(updates)
-            await queryClient.invalidateQueries({ queryKey: ['staff'] })
+            await queryClient.invalidateQueries({ queryKey: ['staff'], refetchType: 'all' })
             toast.success(`Rotation configurée pour ${updatedCount} collaborateurs`)
         } catch (err) {
             console.error(err)
@@ -454,7 +454,7 @@ export function PlanningPage() {
             const deletePromises = eventsToDelete.map(e => api.scheduleEvents.delete(e.id))
             await Promise.all(deletePromises)
 
-            await queryClient.invalidateQueries({ queryKey: ['schedule'] })
+            await queryClient.invalidateQueries({ queryKey: ['schedule'], refetchType: 'all' })
             toast.success(`${eventsToDelete.length} événements supprimés`)
         } catch (err) {
             console.error(err)
@@ -569,8 +569,8 @@ export function PlanningPage() {
 
             if (newEvents.length > 0) {
                 await Promise.all(newEvents)
-                queryClient.invalidateQueries({ queryKey: ['schedule'] })
-                await queryClient.invalidateQueries({ queryKey: ['staff'] }) // Rafraichir aussi staff pour l'ui
+                queryClient.invalidateQueries({ queryKey: ['schedule'], refetchType: 'all' })
+                await queryClient.invalidateQueries({ queryKey: ['staff'], refetchType: 'all' }) // Rafraichir aussi staff pour l'ui
                 toast.success(`${createdCount} événements crées pour ${weekTypeLabel}`)
             } else {
                 toast.info("Aucun événement à créer (tout est déjà rempli ou personne ne travaille)")

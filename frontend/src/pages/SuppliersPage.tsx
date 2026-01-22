@@ -73,7 +73,7 @@ export function SuppliersPage() {
     const createMutation = useMutation({
         mutationFn: api.suppliers.create,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+            queryClient.invalidateQueries({ queryKey: ['suppliers'], refetchType: 'all' })
             toast.success("Fournisseur ajouté")
             resetForm()
             setIsDialogOpen(false)
@@ -85,7 +85,7 @@ export function SuppliersPage() {
         mutationFn: ({ id, data }: { id: string; data: Partial<Supplier> }) =>
             api.suppliers.update(id, data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+            queryClient.invalidateQueries({ queryKey: ['suppliers'], refetchType: 'all' })
             toast.success("Fournisseur modifié")
             resetForm()
             setIsDialogOpen(false)
@@ -96,7 +96,7 @@ export function SuppliersPage() {
     const deleteMutation = useMutation({
         mutationFn: api.suppliers.delete,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+            queryClient.invalidateQueries({ queryKey: ['suppliers'], refetchType: 'all' })
             toast.success("Fournisseur supprimé")
         },
         onError: () => toast.error("Erreur lors de la suppression")
