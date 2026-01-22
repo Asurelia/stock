@@ -1,6 +1,10 @@
 import { getSupabase } from './core'
 import type { TraceabilityPhoto } from '../database.types'
 
+// Helper for tables not in generated types (recurring_output_configs, daily_recurring_outputs)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getUntypedSupabase = () => getSupabase() as any
+
 export const OUTPUT_REASONS = [
     'Service midi',
     'Service soir',
@@ -76,8 +80,8 @@ export const recurringOutputsApi = {
     // =========================================
     configs: {
         getAll: async (): Promise<RecurringOutputConfig[]> => {
-            const { data, error } = await (getSupabase() as ReturnType<typeof getSupabase>)
-                .from('recurring_output_configs' as 'products')
+            const { data, error } = await getUntypedSupabase()
+                .from('recurring_output_configs')
                 .select(`*, products (name)`)
                 .order('category')
                 .order('created_at')
@@ -95,8 +99,8 @@ export const recurringOutputsApi = {
         },
 
         getByCategory: async (category: DailyOutputCategory): Promise<RecurringOutputConfig[]> => {
-            const { data, error } = await (getSupabase() as ReturnType<typeof getSupabase>)
-                .from('recurring_output_configs' as 'products')
+            const { data, error } = await getUntypedSupabase()
+                .from('recurring_output_configs')
                 .select(`*, products (name)`)
                 .eq('category', category)
                 .eq('is_active', true)
@@ -115,14 +119,14 @@ export const recurringOutputsApi = {
         },
 
         upsert: async (config: { category: DailyOutputCategory; productId: string; quantity: number }): Promise<RecurringOutputConfig> => {
-            const { data, error } = await (getSupabase() as ReturnType<typeof getSupabase>)
-                .from('recurring_output_configs' as 'products')
+            const { data, error } = await getUntypedSupabase()
+                .from('recurring_output_configs')
                 .upsert({
                     category: config.category,
                     product_id: config.productId,
                     quantity: config.quantity,
                     is_active: true
-                } as never, { onConflict: 'category,product_id' })
+                } , { onConflict: 'category,product_id' })
                 .select()
                 .single()
 
@@ -139,8 +143,8 @@ export const recurringOutputsApi = {
         },
 
         delete: async (id: string): Promise<void> => {
-            const { error } = await (getSupabase() as ReturnType<typeof getSupabase>)
-                .from('recurring_output_configs' as 'products')
+            const { error } = await getUntypedSupabase()
+                .from('recurring_output_configs')
                 .delete()
                 .eq('id', id)
 
@@ -148,9 +152,9 @@ export const recurringOutputsApi = {
         },
 
         updateQuantity: async (id: string, quantity: number): Promise<void> => {
-            const { error } = await (getSupabase() as ReturnType<typeof getSupabase>)
-                .from('recurring_output_configs' as 'products')
-                .update({ quantity } as never)
+            const { error } = await getUntypedSupabase()
+                .from('recurring_output_configs')
+                .update({ quantity })
                 .eq('id', id)
 
             if (error) throw error
@@ -162,8 +166,8 @@ export const recurringOutputsApi = {
     // =========================================
     daily: {
         getForDate: async (date: string): Promise<DailyRecurringOutput[]> => {
-            const { data, error } = await (getSupabase() as ReturnType<typeof getSupabase>)
-                .from('daily_recurring_outputs' as 'products')
+            const { data, error } = await getUntypedSupabase()
+                .from('daily_recurring_outputs')
                 .select(`*, products (name)`)
                 .eq('date', date)
                 .order('category')
@@ -184,11 +188,11 @@ export const recurringOutputsApi = {
 
         // Initialize today's outputs from global config (if not already done)
         initializeForDate: async (date: string): Promise<DailyRecurringOutput[]> => {
-            const supabase = getSupabase() as ReturnType<typeof getSupabase>
+            const supabase = getUntypedSupabase()
             
             // Check if already initialized
             const { data: existing } = await supabase
-                .from('daily_recurring_outputs' as 'products')
+                .from('daily_recurring_outputs')
                 .select('id')
                 .eq('date', date)
                 .limit(1)
@@ -200,7 +204,7 @@ export const recurringOutputsApi = {
 
             // Get active configs
             const { data: configs, error: configError } = await supabase
-                .from('recurring_output_configs' as 'products')
+                .from('recurring_output_configs')
                 .select('*')
                 .eq('is_active', true)
 
@@ -220,8 +224,8 @@ export const recurringOutputsApi = {
             }))
 
             const { error: insertError } = await supabase
-                .from('daily_recurring_outputs' as 'products')
-                .insert(dailyEntries as never)
+                .from('daily_recurring_outputs')
+                .insert(dailyEntries)
 
             if (insertError) throw insertError
 
@@ -230,14 +234,14 @@ export const recurringOutputsApi = {
 
         // Sync today's outputs with global config (add new configs, keep existing)
         syncForDate: async (date: string): Promise<DailyRecurringOutput[]> => {
-            const supabase = getSupabase() as ReturnType<typeof getSupabase>
+            const supabase = getUntypedSupabase()
             
             // Get existing daily outputs
             const existingOutputs = await recurringOutputsApi.daily.getForDate(date)
             
             // Get active configs
             const { data: configs, error: configError } = await supabase
-                .from('recurring_output_configs' as 'products')
+                .from('recurring_output_configs')
                 .select('*')
                 .eq('is_active', true)
 
@@ -260,8 +264,8 @@ export const recurringOutputsApi = {
 
             if (newEntries.length > 0) {
                 const { error: insertError } = await supabase
-                    .from('daily_recurring_outputs' as 'products')
-                    .insert(newEntries as never)
+                    .from('daily_recurring_outputs')
+                    .insert(newEntries)
 
                 if (insertError) throw insertError
             }
@@ -270,9 +274,9 @@ export const recurringOutputsApi = {
         },
 
         updateQuantity: async (id: string, quantity: number): Promise<void> => {
-            const { error } = await (getSupabase() as ReturnType<typeof getSupabase>)
-                .from('daily_recurring_outputs' as 'products')
-                .update({ quantity } as never)
+            const { error } = await getUntypedSupabase()
+                .from('daily_recurring_outputs')
+                .update({ quantity })
                 .eq('id', id)
 
             if (error) throw error
@@ -280,7 +284,7 @@ export const recurringOutputsApi = {
 
         // Execute a single daily output (create actual output and deduct stock)
         execute: async (dailyOutput: DailyRecurringOutput): Promise<void> => {
-            const supabase = getSupabase() as ReturnType<typeof getSupabase>
+            const supabase = getUntypedSupabase()
             const category = DAILY_OUTPUT_CATEGORIES.find(c => c.id === dailyOutput.category)
             if (!category) throw new Error('Invalid category')
 
@@ -294,12 +298,12 @@ export const recurringOutputsApi = {
 
             // Mark as executed
             const { error } = await supabase
-                .from('daily_recurring_outputs' as 'products')
+                .from('daily_recurring_outputs')
                 .update({
                     is_executed: true,
                     executed_at: new Date().toISOString(),
                     output_id: output.id
-                } as never)
+                })
                 .eq('id', dailyOutput.id)
 
             if (error) throw error

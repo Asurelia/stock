@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { supabase } from './supabase'
 
 export type UserRole = 'gerant' | 'cuisinier' | 'plongeur'
@@ -159,5 +159,5 @@ export function hasAccess(user: AuthUser | null, requiredRole?: UserRole): boole
     if (requiredRole === 'cuisinier' || requiredRole === 'plongeur') {
         return user.role === 'cuisinier' || user.role === 'plongeur'
     }
-    return user.role === requiredRole
+    return user.role === (requiredRole as UserRole)
 }
