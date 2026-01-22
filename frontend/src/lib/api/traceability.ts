@@ -1,5 +1,6 @@
 import { getSupabase } from './core'
 import type { TraceabilityPhoto } from '../database.types'
+import { activityLogApi } from './activityLog'
 
 // Helper for tables not in generated types (recurring_output_configs, daily_recurring_outputs)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -456,7 +457,7 @@ export const traceabilityApi = {
 
             if (updateError) throw updateError
 
-            return {
+            const result = {
                 id: data.id,
                 productId: data.product_id || '',
                 productName: (data.products as { name: string } | null)?.name || '',
@@ -465,6 +466,20 @@ export const traceabilityApi = {
                 date: data.output_date,
                 createdAt: data.created_at
             }
+
+            // Log activity
+            activityLogApi.log({
+                action: 'output_created',
+                entityType: 'output',
+                entityId: result.id,
+                details: {
+                    productName: result.productName,
+                    quantity: result.quantity,
+                    reason: result.reason
+                }
+            })
+
+            return result
         },
 
         delete: async (id: string): Promise<void> => {
@@ -505,6 +520,16 @@ export const traceabilityApi = {
                 .eq('id', id)
 
             if (error) throw error
+
+            // Log activity
+            activityLogApi.log({
+                action: 'output_deleted',
+                entityType: 'output',
+                entityId: id,
+                details: {
+                    quantity: Number(output.quantity)
+                }
+            })
         }
     },
 

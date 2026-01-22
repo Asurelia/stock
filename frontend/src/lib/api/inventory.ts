@@ -1,4 +1,5 @@
 import { getSupabase } from './core'
+import { activityLogApi } from './activityLog'
 
 // =============================================
 // Supplier Categories
@@ -210,7 +211,7 @@ export const inventoryApi = {
                 })
             }
 
-            return results[0] || {
+            const result = results[0] || {
                 id: '',
                 date: deliveryData.date,
                 supplierId: deliveryData.supplierId || null,
@@ -220,6 +221,20 @@ export const inventoryApi = {
                 items: [],
                 createdAt: new Date().toISOString()
             }
+
+            // Log activity
+            activityLogApi.log({
+                action: 'delivery_created',
+                entityType: 'delivery',
+                entityId: result.id,
+                details: {
+                    supplierName: deliveryData.supplierName,
+                    itemCount: deliveryData.items.length,
+                    total: result.total
+                }
+            })
+
+            return result
         },
 
         delete: async (id: string): Promise<void> => {
@@ -229,6 +244,13 @@ export const inventoryApi = {
                 .eq('id', id)
 
             if (error) throw error
+
+            // Log activity
+            activityLogApi.log({
+                action: 'delivery_deleted',
+                entityType: 'delivery',
+                entityId: id
+            })
         }
     }
 }

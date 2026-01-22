@@ -6,6 +6,7 @@ import { temperatureApi } from './temperature'
 import { traceabilityApi } from './traceability'
 import { inventoryApi } from './inventory'
 import { analyticsApi } from './analytics'
+import { activityLogApi } from './activityLog'
 
 export * from './core'
 export * from './products'
@@ -15,6 +16,7 @@ export * from './staff'
 export * from './temperature'
 export * from './traceability'
 export * from './inventory'
+export * from './activityLog'
 
 import { recurringOutputsApi } from './traceability'
 
@@ -32,5 +34,6 @@ export const api = {
     recurringOutputs: recurringOutputsApi,
     suppliers: inventoryApi.suppliers,
     deliveries: inventoryApi.deliveries,
-    analytics: analyticsApi
+    analytics: analyticsApi,
+    activityLog: activityLogApi
 }

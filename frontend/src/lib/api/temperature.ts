@@ -1,4 +1,5 @@
 import { getSupabase } from './core'
+import { activityLogApi } from './activityLog'
 
 export const temperatureApi = {
     // =========================================
@@ -108,10 +109,23 @@ export const temperatureApi = {
             const { data, error } = await getSupabase()
                 .from('temperature_readings')
                 .insert([readingData])
-                .select()
+                .select(`*, temperature_equipment (name)`)
                 .single()
 
             if (error) throw error
+
+            // Log activity
+            activityLogApi.log({
+                action: 'temperature_recorded',
+                entityType: 'temperature',
+                entityId: data.id,
+                details: {
+                    temperature: readingData.temperature,
+                    equipmentName: (data.temperature_equipment as { name?: string } | null)?.name,
+                    isCompliant: readingData.is_compliant
+                }
+            })
+
             return data
         },
 
