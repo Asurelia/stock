@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Package, Home, LogOut, Truck, Users, ChefHat, ClipboardList, BarChart, Thermometer, Camera, Menu, X, Calculator, CalendarDays, FileText, UserCog, LogOutIcon } from 'lucide-react';
+import { Package, Home, LogOut, Truck, Users, ChefHat, ClipboardList, BarChart, Thermometer, Camera, Menu, X, Calculator, CalendarDays, FileText, UserCog, LogOutIcon, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/sonner';
@@ -21,6 +21,7 @@ const navItems = [
     { icon: CalendarDays, label: 'Planning', path: '/planning', gerantOnly: false },
     { icon: BarChart, label: 'Analytics', path: '/analytics', gerantOnly: true },
     { icon: FileText, label: 'Journal', path: '/activity-log', gerantOnly: true },
+    { icon: Shield, label: 'Permissions', path: '/user-management', gerantOnly: true },
 ];
 
 export function Layout() {

@@ -22,6 +22,7 @@ const PlanningPage = lazy(() => import('@/pages/PlanningPage').then(m => ({ defa
 const LoginPage = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const UsersPage = lazy(() => import('@/pages/UsersPage').then(m => ({ default: m.UsersPage })));
 const ActivityLogPage = lazy(() => import('@/pages/ActivityLogPage'));
+const UserManagementPage = lazy(() => import('@/pages/UserManagementPage').then(m => ({ default: m.UserManagementPage })));
 
 // Composant de chargement pour les pages lazy
 const PageLoader = () => (
@@ -88,6 +89,7 @@ function AppRoutes() {
         <Route path="/analytics" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><AnalyticsPage /></Suspense></GerantOnlyRoute>} />
         <Route path="/users" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><UsersPage /></Suspense></GerantOnlyRoute>} />
         <Route path="/activity-log" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><ActivityLogPage /></Suspense></GerantOnlyRoute>} />
+        <Route path="/user-management" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><UserManagementPage /></Suspense></GerantOnlyRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

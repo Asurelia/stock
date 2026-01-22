@@ -7,6 +7,7 @@ import { traceabilityApi } from './traceability'
 import { inventoryApi } from './inventory'
 import { analyticsApi } from './analytics'
 import { activityLogApi } from './activityLog'
+import { permissionsApi, AVAILABLE_PERMISSIONS, getDefaultPermissions } from './permissions'
 
 export * from './core'
 export * from './products'
@@ -17,6 +18,7 @@ export * from './temperature'
 export * from './traceability'
 export * from './inventory'
 export * from './activityLog'
+export * from './permissions'
 
 import { recurringOutputsApi } from './traceability'
 
@@ -35,5 +37,8 @@ export const api = {
     suppliers: inventoryApi.suppliers,
     deliveries: inventoryApi.deliveries,
     analytics: analyticsApi,
-    activityLog: activityLogApi
+    activityLog: activityLogApi,
+    permissions: permissionsApi,
+    availablePermissions: AVAILABLE_PERMISSIONS,
+    getDefaultPermissions
 }
