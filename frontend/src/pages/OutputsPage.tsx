@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api, type Product, DAILY_OUTPUT_CATEGORIES, type DailyOutputCategory, type RecurringOutputConfig } from "@/lib/api"
 import { format, subDays } from "date-fns"
@@ -496,30 +496,23 @@ function DailyOutputDialog({
     const [searchQuery, setSearchQuery] = useState('')
     const [isSaving, setIsSaving] = useState(false)
 
-    // Initialize from existing configs when dialog opens
-    const handleOpenChange = (isOpen: boolean) => {
-        if (isOpen && category) {
-            const categoryConfigs = existingConfigs.filter(c => c.category === category.id)
-            const initialMap = new Map<string, number>()
-            categoryConfigs.forEach(c => initialMap.set(c.productId, c.quantity))
-            setSelectedProducts(initialMap)
-        }
-        if (!isOpen) {
-            setSelectedProducts(new Map())
-            setSearchQuery('')
-            onClose()
-        }
-    }
-
-    // Re-initialize when category changes
-    useState(() => {
+    // Initialize from existing configs when dialog opens or category changes
+    useEffect(() => {
         if (open && category) {
             const categoryConfigs = existingConfigs.filter(c => c.category === category.id)
             const initialMap = new Map<string, number>()
             categoryConfigs.forEach(c => initialMap.set(c.productId, c.quantity))
             setSelectedProducts(initialMap)
         }
-    })
+    }, [open, category, existingConfigs])
+
+    const handleOpenChange = (isOpen: boolean) => {
+        if (!isOpen) {
+            setSelectedProducts(new Map())
+            setSearchQuery('')
+            onClose()
+        }
+    }
 
     const filteredProducts = products.filter(p => 
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
