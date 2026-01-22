@@ -52,9 +52,9 @@ export const traceabilityApi = {
         },
 
         getByDateRange: async (from: string, to: string): Promise<Output[]> => {
-            // Add time to make the range inclusive of the full days
-            const fromDate = `${from}T00:00:00.000Z`
-            const toDate = `${to}T23:59:59.999Z`
+            // Handle both ISO strings and date-only strings
+            const fromDate = from.includes('T') ? from : `${from}T00:00:00.000Z`
+            const toDate = to.includes('T') ? to : `${to}T23:59:59.999Z`
 
             const { data, error } = await getSupabase()
                 .from('outputs')

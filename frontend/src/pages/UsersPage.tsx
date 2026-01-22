@@ -375,8 +375,9 @@ export function UsersPage() {
             </Card>
 
             {/* Create/Edit Dialog */}
+            {isDialogOpen && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>
                             {editingUser ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}
@@ -487,14 +488,14 @@ export function UsersPage() {
                         <div className="space-y-2">
                             <Label htmlFor="staffId">Lier à un collaborateur (optionnel)</Label>
                             <Select
-                                value={formData.staffId}
-                                onValueChange={(value) => setFormData({ ...formData, staffId: value })}
+                                value={formData.staffId || "none"}
+                                onValueChange={(value) => setFormData({ ...formData, staffId: value === "none" ? "" : value })}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Aucun" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucun</SelectItem>
+                                    <SelectItem value="none">Aucun</SelectItem>
                                     {staffList.map((staff) => (
                                         <SelectItem key={staff.id} value={staff.id}>
                                             {staff.firstName} {staff.lastName}
@@ -525,6 +526,7 @@ export function UsersPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            )}
 
             {/* Delete Confirmation Dialog */}
             <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
