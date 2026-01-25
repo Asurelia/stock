@@ -1,11 +1,12 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Package, Home, LogOut, Truck, Users, ChefHat, ClipboardList, BarChart, Thermometer, Camera, Calculator, CalendarDays, FileText, UserCog, LogOut as LogOutIcon, Shield } from 'lucide-react';
+import { Package, Home, LogOut, Truck, Users, ChefHat, ClipboardList, BarChart, Thermometer, Camera, Calculator, CalendarDays, FileText, UserCog, LogOut as LogOutIcon, Shield, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeToggle } from '@/components/theme';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { MobileNav } from './MobileNav';
+import { useNetwork } from '@/hooks/useCapacitor';
 
 const navItems = [
   { icon: Home, label: 'Dashboard', path: '/', gerantOnly: false },
@@ -28,6 +29,7 @@ export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isGerant, logout } = useAuth();
+  const { isOnline } = useNetwork();
 
   const handleLogout = () => {
     logout();
@@ -59,8 +61,19 @@ export function Layout() {
 
   return (
     <div className="flex h-screen bg-background">
+      {/* Offline Banner */}
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-amber-950 px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium safe-area-top">
+          <WifiOff className="w-4 h-4" />
+          <span>Mode hors ligne - Certaines fonctionnalités peuvent être limitées</span>
+        </div>
+      )}
+
       {/* Desktop Sidebar */}
-      <aside className="w-64 border-r bg-card hidden md:flex flex-col">
+      <aside className={cn(
+        "w-64 border-r bg-card hidden md:flex flex-col",
+        !isOnline && "mt-10"
+      )}>
         <div className="p-6 border-b">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
             StockPro
@@ -99,7 +112,10 @@ export function Layout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50 pb-20 md:pb-0">
+      <main className={cn(
+        "flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50 pb-20 md:pb-0",
+        !isOnline && "mt-10"
+      )}>
         <Outlet />
       </main>
 

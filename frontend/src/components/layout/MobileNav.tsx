@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme';
 import { useAuth } from '@/lib/auth';
 import { useNavigate } from 'react-router-dom';
+import { useHaptics } from '@/hooks/useCapacitor';
 
 // Quick access items for bottom nav (most used)
 const quickNavItems = [
@@ -47,6 +48,7 @@ export function MobileNav() {
   const navigate = useNavigate();
   const { user, isGerant, logout } = useAuth();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { vibrate } = useHaptics();
 
   const handleLogout = () => {
     logout();
@@ -55,6 +57,7 @@ export function MobileNav() {
   };
 
   const handleNavClick = (path: string) => {
+    vibrate('light');
     if (path === 'more') {
       setSheetOpen(true);
     }
