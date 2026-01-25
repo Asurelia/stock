@@ -1,0 +1,18 @@
+--- DIAGNOSTIC START ---
+Checking bucket "traceability-photos"...
+Available buckets: 
+❌ Bucket "traceability-photos" NOT FOUND!
+
+Checking URL generation...
+Generated Public URL for "test-check/image.jpg":
+https://jbbiarxtqevifepzzwgu.supabase.co/storage/v1/object/public/traceability-photos/test-check/image.jpg
+
+Checking "traceability_photos" table data...
+
+Testing access to latest photo:
+URL: https://jbbiarxtqevifepzzwgu.supabase.co/storage/v1/object/public/traceability-photos/92ea0d73-e099-4739-a1d0-ab1233843ba5/1769150295289.jpg
+Fetch Status: 400 Bad Request
+Content-Type: application/json; charset=utf-8
+Content-Length: 76
+❌ FAILED to download file. This indicates an issue with Storage RLS or Bucket config.
+--- DIAGNOSTIC END ---
