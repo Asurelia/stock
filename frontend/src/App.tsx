@@ -2,9 +2,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/theme';
 import { Layout } from '@/components/layout/Layout';
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { CapacitorUpdater } from '@capgo/capacitor-updater';
+import { isNative } from '@/hooks/useCapacitor';
 
 // Lazy load toutes les pages pour optimiser le bundle initial
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -97,6 +99,14 @@ function AppRoutes() {
 }
 
 function App() {
+  useEffect(() => {
+    // Signale à Capgo que l'app a bien démarré
+    // Sinon, Capgo fera un rollback vers la version précédente
+    if (isNative) {
+      CapacitorUpdater.notifyAppReady();
+    }
+  }, []);
+
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
