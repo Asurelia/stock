@@ -42,6 +42,15 @@ const config: CapacitorConfig = {
       // Supprime automatiquement les anciennes versions
       autoDeletePrevious: true,
     },
+    PushNotifications: {
+      // Demander automatiquement les permissions au premier lancement
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
+    LocalNotifications: {
+      // Configuration des icônes par défaut
+      smallIcon: 'ic_stat_icon_config_sample',
+      iconColor: '#3b82f6',
+    },
   },
   android: {
     buildOptions: {

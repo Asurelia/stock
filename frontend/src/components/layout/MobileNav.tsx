@@ -15,6 +15,7 @@ import { ThemeToggle } from '@/components/theme';
 import { useAuth } from '@/lib/auth';
 import { useNavigate } from 'react-router-dom';
 import { useHaptics } from '@/hooks/useCapacitor';
+import { SyncIndicatorCompact } from '@/components/offline/SyncIndicator';
 
 // Quick access items for bottom nav (most used)
 const quickNavItems = [
@@ -124,7 +125,10 @@ export function MobileNav() {
                   </p>
                 </div>
               </div>
-              <ThemeToggle />
+              <div className="flex items-center gap-2">
+                <SyncIndicatorCompact />
+                <ThemeToggle />
+              </div>
             </div>
           </SheetHeader>
 

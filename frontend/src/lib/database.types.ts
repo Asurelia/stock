@@ -652,6 +652,46 @@ export interface Database {
                     }
                 ]
             }
+            push_tokens: {
+                Row: {
+                    id: string
+                    user_profile_id: string | null
+                    device_id: string
+                    token: string
+                    platform: 'android' | 'web'
+                    is_active: boolean
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_profile_id?: string | null
+                    device_id: string
+                    token: string
+                    platform: 'android' | 'web'
+                    is_active?: boolean
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_profile_id?: string | null
+                    device_id?: string
+                    token?: string
+                    platform?: 'android' | 'web'
+                    is_active?: boolean
+                    created_at?: string
+                    updated_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "push_tokens_user_profile_id_fkey"
+                        columns: ["user_profile_id"]
+                        referencedRelation: "user_profiles"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
         }
         Views: {
             [_ in never]: never
@@ -692,3 +732,7 @@ export type UserProfileUpdate = Database['public']['Tables']['user_profiles']['U
 
 export type ActivityLogRow = Database['public']['Tables']['activity_log']['Row']
 export type ActivityLogInsert = Database['public']['Tables']['activity_log']['Insert']
+
+export type PushTokenRow = Database['public']['Tables']['push_tokens']['Row']
+export type PushTokenInsert = Database['public']['Tables']['push_tokens']['Insert']
+export type PushTokenUpdate = Database['public']['Tables']['push_tokens']['Update']

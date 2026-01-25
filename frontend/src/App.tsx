@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/theme';
 import { Layout } from '@/components/layout/Layout';
@@ -7,6 +7,8 @@ import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { isNative } from '@/hooks/useCapacitor';
+import { OfflineProvider } from '@/components/offline';
+import { App as CapApp } from '@capacitor/app';
 
 // Lazy load toutes les pages pour optimiser le bundle initial
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -72,6 +74,39 @@ const queryClient = new QueryClient({
   },
 });
 
+// Deep link handler component
+function DeepLinkHandler() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isNative) return;
+
+    // Handle app opened via deep link
+    CapApp.addListener('appUrlOpen', (event) => {
+      const url = new URL(event.url);
+      const path = url.pathname || '/';
+      console.log('Deep link received:', path);
+      navigate(path);
+    });
+
+    // Check if app was opened with a deep link
+    CapApp.getLaunchUrl().then((result) => {
+      if (result?.url) {
+        const url = new URL(result.url);
+        const path = url.pathname || '/';
+        console.log('Launch URL:', path);
+        navigate(path);
+      }
+    });
+
+    return () => {
+      CapApp.removeAllListeners();
+    };
+  }, [navigate]);
+
+  return null;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -110,11 +145,14 @@ function App() {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </AuthProvider>
+        <OfflineProvider>
+          <AuthProvider>
+            <BrowserRouter>
+              <DeepLinkHandler />
+              <AppRoutes />
+            </BrowserRouter>
+          </AuthProvider>
+        </OfflineProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );
