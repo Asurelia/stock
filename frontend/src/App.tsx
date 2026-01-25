@@ -2,13 +2,15 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/theme';
 import { Layout } from '@/components/layout/Layout';
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { isNative } from '@/hooks/useCapacitor';
 import { OfflineProvider } from '@/components/offline';
 import { App as CapApp } from '@capacitor/app';
+import { UpdateDialog } from '@/components/update';
+import { checkUpdateOnStartup, type UpdateCheckResult } from '@/lib/appUpdate';
 
 // Lazy load toutes les pages pour optimiser le bundle initial
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -134,11 +136,22 @@ function AppRoutes() {
 }
 
 function App() {
+  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null);
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+
   useEffect(() => {
     // Signale à Capgo que l'app a bien démarré
     // Sinon, Capgo fera un rollback vers la version précédente
     if (isNative) {
       CapacitorUpdater.notifyAppReady();
+
+      // Vérifie les mises à jour APK au démarrage
+      checkUpdateOnStartup().then((result) => {
+        if (result) {
+          setUpdateInfo(result);
+          setShowUpdateDialog(true);
+        }
+      });
     }
   }, []);
 
@@ -150,6 +163,11 @@ function App() {
             <BrowserRouter>
               <DeepLinkHandler />
               <AppRoutes />
+              <UpdateDialog
+                updateInfo={updateInfo}
+                open={showUpdateDialog}
+                onOpenChange={setShowUpdateDialog}
+              />
             </BrowserRouter>
           </AuthProvider>
         </OfflineProvider>
