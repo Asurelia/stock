@@ -83,14 +83,22 @@ export function LoginPage() {
         }
     }, [step])
 
+    // Check biometric status from localStorage directly (more reliable)
+    const getBiometricStatusForUser = (userId: string): boolean => {
+        const enabledStr = localStorage.getItem('stockpro_biometric_enabled')
+        const userIdStr = localStorage.getItem('stockpro_biometric_user')
+        return enabledStr === 'true' && userIdStr === userId
+    }
+
     // Try biometric authentication on user selection if enabled for that user
     const tryBiometricAuth = async (userId: string) => {
-        if (!biometricState.isAvailable || !biometricState.isEnabled) {
+        if (!biometricState.isAvailable) {
             return false
         }
 
-        // Check if biometric is enabled for this specific user
-        if (biometricState.enabledUserId !== userId) {
+        // Check localStorage directly for reliability
+        const isBiometricEnabledForUser = getBiometricStatusForUser(userId)
+        if (!isBiometricEnabledForUser) {
             return false
         }
 
@@ -208,12 +216,10 @@ export function LoginPage() {
         setPin('')
         setError('')
 
-        // Check if biometric is enabled for this user
-        if (
-            biometricState.isAvailable &&
-            biometricState.isEnabled &&
-            biometricState.enabledUserId === user.id
-        ) {
+        // Check if biometric is enabled for this user (check localStorage directly)
+        const isBiometricEnabledForUser = getBiometricStatusForUser(user.id)
+
+        if (biometricState.isAvailable && isBiometricEnabledForUser) {
             // Try biometric auth first
             const success = await tryBiometricAuth(user.id)
             if (!success) {
@@ -364,7 +370,7 @@ export function LoginPage() {
                                             <div className="text-sm text-muted-foreground">{getRoleLabel(user.role)}</div>
                                         </div>
                                         {/* Show fingerprint icon if biometric enabled for this user */}
-                                        {biometricState.isEnabled && biometricState.enabledUserId === user.id && (
+                                        {getBiometricStatusForUser(user.id) && (
                                             <Fingerprint className="w-5 h-5 text-green-600 dark:text-green-400" />
                                         )}
                                     </Button>
@@ -419,10 +425,7 @@ export function LoginPage() {
                                 {keypadDigits.map((digit, index) => {
                                     if (digit === '') {
                                         // Show biometric button if available for this user
-                                        if (
-                                            biometricState.isEnabled &&
-                                            biometricState.enabledUserId === selectedUser?.id
-                                        ) {
+                                        if (selectedUser && getBiometricStatusForUser(selectedUser.id)) {
                                             return (
                                                 <Button
                                                     key={index}
