@@ -203,10 +203,35 @@ export async function downloadAndInstallUpdate(
  * Lance l'installation de l'APK via un intent Android
  */
 async function installApk(fileUri: string): Promise<void> {
-  // Ouvre directement le fichier APK
-  // Android va demander confirmation à l'utilisateur
-  // Cela nécessite que l'app ait la permission d'installer des apps inconnues
-  window.location.href = fileUri;
+  try {
+    // Utilise cordova-plugin-file-opener2 pour ouvrir l'APK
+    // @ts-expect-error - cordova plugin global
+    if (window.cordova && window.cordova.plugins && window.cordova.plugins.fileOpener2) {
+      // @ts-expect-error - cordova plugin global
+      window.cordova.plugins.fileOpener2.open(
+        fileUri,
+        'application/vnd.android.package-archive',
+        {
+          error: (e: Error) => {
+            console.error('Error opening APK:', e);
+            // Fallback: essayer d'ouvrir directement
+            window.open(fileUri, '_system');
+          },
+          success: () => {
+            console.log('APK installer launched successfully');
+          }
+        }
+      );
+    } else {
+      // Fallback si le plugin n'est pas disponible
+      console.log('FileOpener2 not available, trying fallback');
+      window.open(fileUri, '_system');
+    }
+  } catch (error) {
+    console.error('Error launching APK installer:', error);
+    // Dernier fallback
+    window.open(fileUri, '_system');
+  }
 }
 
 /**

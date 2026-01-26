@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "1.2.3",
+  "version": "1.2.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "android:build": "npm run build && npx cap sync android"
   },
   "dependencies": {
+    "@awesome-cordova-plugins/file-opener": "^8.1.0",
     "@capacitor/android": "^8.0.1",
     "@capacitor/app": "^8.0.0",
     "@capacitor/camera": "^8.0.0",
@@ -48,6 +49,7 @@
     "capacitor-native-biometric": "^4.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cordova-plugin-file-opener2": "^4.0.0",
     "date-fns": "^4.1.0",
     "dexie": "^4.2.1",
     "lucide-react": "^0.562.0",
