@@ -218,12 +218,12 @@ export async function checkUpdateOnStartup(): Promise<UpdateCheckResult | null> 
     return null;
   }
 
-  // Vérifie si on a déjà vérifié récemment (1 fois par jour max)
+  // Vérifie si on a déjà vérifié récemment (1 fois par heure max)
   const lastCheck = localStorage.getItem('lastUpdateCheck');
   const now = Date.now();
-  const ONE_DAY = 24 * 60 * 60 * 1000;
+  const ONE_HOUR = 60 * 60 * 1000;
 
-  if (lastCheck && now - parseInt(lastCheck) < ONE_DAY) {
+  if (lastCheck && now - parseInt(lastCheck) < ONE_HOUR) {
     return null;
   }
 
