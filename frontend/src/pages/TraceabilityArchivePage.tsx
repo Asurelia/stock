@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Archive, Search } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -11,6 +11,7 @@ import { TraceabilityStats } from '@/components/traceability/TraceabilityStats';
 import { TraceabilityGrid } from '@/components/traceability/TraceabilityGrid';
 import { PhotoViewerDialog } from '@/components/traceability/PhotoViewerDialog';
 import type { TraceabilityPhotoExtended } from '@/types/traceability';
+import { supabase } from '@/lib/supabase';
 
 type ViewMode = 'day' | 'month' | 'year';
 
@@ -49,6 +50,43 @@ export function TraceabilityArchivePage() {
                 return [];
             }
         },
+    });
+
+    // Fetch all photo dates for calendar indicators (last 12 months)
+    const { data: allPhotoDates } = useQuery({
+        queryKey: ['traceability-all-dates'],
+        queryFn: async () => {
+            if (!supabase) return { dates: new Set<string>(), months: new Set<string>() };
+
+            // Get photos from last 12 months
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+            const { data, error } = await supabase
+                .from('traceability_photos')
+                .select('captured_at')
+                .gte('captured_at', oneYearAgo.toISOString())
+                .order('captured_at', { ascending: false });
+
+            if (error || !data) {
+                console.error('Error fetching photo dates:', error);
+                return { dates: new Set<string>(), months: new Set<string>() };
+            }
+
+            const dates = new Set<string>();
+            const months = new Set<string>();
+
+            data.forEach(photo => {
+                const date = new Date(photo.captured_at);
+                const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                dates.add(dateStr);
+                months.add(monthStr);
+            });
+
+            return { dates, months };
+        },
+        staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     });
 
     // Get stats - Calculate independently
@@ -201,6 +239,8 @@ export function TraceabilityArchivePage() {
                 onDateChange={setSelectedDate}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
+                datesWithPhotos={allPhotoDates?.dates}
+                monthsWithPhotos={allPhotoDates?.months}
             />
 
             {/* Stats Card */}

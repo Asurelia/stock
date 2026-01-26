@@ -9,6 +9,8 @@ interface DateNavigatorProps {
     onDateChange: (date: Date) => void;
     viewMode: 'day' | 'month' | 'year';
     onViewModeChange: (mode: 'day' | 'month' | 'year') => void;
+    datesWithPhotos?: Set<string>; // Format: "YYYY-MM-DD"
+    monthsWithPhotos?: Set<string>; // Format: "YYYY-MM"
 }
 
 const MONTHS = [
@@ -18,8 +20,22 @@ const MONTHS = [
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
-export function DateNavigator({ selectedDate, onDateChange, viewMode, onViewModeChange }: DateNavigatorProps) {
+export function DateNavigator({ selectedDate, onDateChange, viewMode, onViewModeChange, datesWithPhotos, monthsWithPhotos }: DateNavigatorProps) {
     const [currentMonth, setCurrentMonth] = useState(selectedDate);
+
+    // Helper to check if a date has photos
+    const hasPhotos = (date: Date): boolean => {
+        if (!datesWithPhotos) return false;
+        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        return datesWithPhotos.has(dateStr);
+    };
+
+    // Helper to check if a month has photos
+    const monthHasPhotos = (year: number, month: number): boolean => {
+        if (!monthsWithPhotos) return false;
+        const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+        return monthsWithPhotos.has(monthStr);
+    };
 
     const goToPreviousPeriod = () => {
         const newDate = new Date(selectedDate);
@@ -153,22 +169,32 @@ export function DateNavigator({ selectedDate, onDateChange, viewMode, onViewMode
                 </div>
 
                 <div className="grid grid-cols-7 gap-1">
-                    {days.map((day, index) => (
-                        <button
-                            key={index}
-                            onClick={() => day && onDateChange(day)}
-                            disabled={!day}
-                            className={cn(
-                                "aspect-square p-2 text-sm rounded-lg transition-colors",
-                                !day && "invisible",
-                                day && "hover:bg-muted",
-                                day && isSameDay(day, selectedDate) && "bg-primary text-primary-foreground hover:bg-primary/90",
-                                day && isToday(day) && !isSameDay(day, selectedDate) && "border-2 border-primary"
-                            )}
-                        >
-                            {day?.getDate()}
-                        </button>
-                    ))}
+                    {days.map((day, index) => {
+                        const dayHasPhotos = day ? hasPhotos(day) : false;
+                        return (
+                            <button
+                                key={index}
+                                onClick={() => day && onDateChange(day)}
+                                disabled={!day}
+                                className={cn(
+                                    "aspect-square p-1 text-sm rounded-lg transition-colors relative flex flex-col items-center justify-center",
+                                    !day && "invisible",
+                                    day && "hover:bg-muted",
+                                    day && isSameDay(day, selectedDate) && "bg-primary text-primary-foreground hover:bg-primary/90",
+                                    day && isToday(day) && !isSameDay(day, selectedDate) && "border-2 border-primary",
+                                    day && dayHasPhotos && !isSameDay(day, selectedDate) && "bg-green-100 dark:bg-green-900/30 font-semibold"
+                                )}
+                            >
+                                <span>{day?.getDate()}</span>
+                                {dayHasPhotos && (
+                                    <span className={cn(
+                                        "absolute bottom-1 w-1.5 h-1.5 rounded-full",
+                                        isSameDay(day!, selectedDate) ? "bg-white" : "bg-green-500"
+                                    )} />
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
             </Card>
         );
@@ -215,6 +241,7 @@ export function DateNavigator({ selectedDate, onDateChange, viewMode, onViewMode
                         const isSelected = selectedDate.getMonth() === index;
                         const isCurrentMonth = new Date().getMonth() === index &&
                                               new Date().getFullYear() === year;
+                        const hasPhotosInMonth = monthHasPhotos(year, index);
 
                         return (
                             <button
@@ -225,13 +252,20 @@ export function DateNavigator({ selectedDate, onDateChange, viewMode, onViewMode
                                     onViewModeChange('day');
                                 }}
                                 className={cn(
-                                    "p-3 text-sm rounded-lg transition-colors",
+                                    "p-3 text-sm rounded-lg transition-colors relative",
                                     "hover:bg-muted",
                                     isSelected && "bg-primary text-primary-foreground hover:bg-primary/90",
-                                    isCurrentMonth && !isSelected && "border-2 border-primary"
+                                    isCurrentMonth && !isSelected && "border-2 border-primary",
+                                    hasPhotosInMonth && !isSelected && "bg-green-100 dark:bg-green-900/30 font-semibold"
                                 )}
                             >
                                 {month}
+                                {hasPhotosInMonth && (
+                                    <span className={cn(
+                                        "absolute top-1 right-1 w-2 h-2 rounded-full",
+                                        isSelected ? "bg-white" : "bg-green-500"
+                                    )} />
+                                )}
                             </button>
                         );
                     })}
