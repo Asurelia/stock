@@ -251,7 +251,7 @@ export function LoginPage() {
     // Show biometric setup prompt after successful PIN login
     if (showBiometricPrompt) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+            <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 safe-area-inset">
                 <Card className="w-full max-w-md shadow-xl">
                     <CardHeader className="text-center space-y-2">
                         <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-2">
@@ -317,8 +317,8 @@ export function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
-            <Card className="w-full max-w-md shadow-xl">
+        <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 pb-safe overflow-auto">
+            <Card className="w-full max-w-md shadow-xl my-auto">
                 <CardHeader className="text-center space-y-2">
                     <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">
                         {step === 'select' ? (

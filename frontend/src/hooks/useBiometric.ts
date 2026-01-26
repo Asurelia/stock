@@ -174,7 +174,13 @@ export function useBiometric(): UseBiometricReturn {
       return { success: false, error: 'Biometrie non disponible sur cette plateforme' }
     }
 
-    if (!state.isEnabled || !state.enabledUserId) {
+    // Check localStorage directly for most reliable state
+    const enabledStr = localStorage.getItem(BIOMETRIC_ENABLED_KEY)
+    const userIdStr = localStorage.getItem(BIOMETRIC_USER_KEY)
+    const isEnabled = enabledStr === 'true'
+    const enabledUserId = userIdStr || null
+
+    if (!isEnabled || !enabledUserId) {
       return { success: false, error: 'Biometrie non activee' }
     }
 
@@ -213,7 +219,7 @@ export function useBiometric(): UseBiometricReturn {
 
       return { success: false, error: errorMessage }
     }
-  }, [state.isEnabled, state.enabledUserId])
+  }, [])
 
   // Get human-readable biometry type name
   const getBiometryTypeName = useCallback((): string => {
