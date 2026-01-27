@@ -2,17 +2,42 @@
  * Système de mise à jour automatique APK pour Android
  *
  * Fonctionnement :
- * 1. Vérifie sur Supabase s'il y a une nouvelle version
- * 2. Compare avec la version installée
- * 3. Télécharge et propose l'installation
+ * 1. Lit la version NATIVE depuis le build.gradle (via @capacitor/app)
+ * 2. Vérifie sur Supabase s'il y a une nouvelle version
+ * 3. Compare avec la version installée
+ * 4. Télécharge et propose l'installation
  */
 
 import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { createClient } from '@supabase/supabase-js';
 
-// Version actuelle de l'app - DOIT être mise à jour avec package.json
-export const APP_VERSION = '1.2.6';
+// Fallback version (utilisée uniquement sur web)
+const FALLBACK_VERSION = '1.2.6';
+
+// Cache de la version native
+let _nativeVersion: string | null = null;
+
+/**
+ * Récupère la version NATIVE de l'APK installée (depuis build.gradle)
+ * Cette version ne peut PAS être écrasée par Capgo
+ */
+export async function getAppVersion(): Promise<string> {
+  if (_nativeVersion) return _nativeVersion;
+
+  if (!Capacitor.isNativePlatform()) {
+    return FALLBACK_VERSION;
+  }
+
+  try {
+    const info = await CapApp.getInfo();
+    _nativeVersion = info.version; // versionName du build.gradle
+    return _nativeVersion;
+  } catch {
+    return FALLBACK_VERSION;
+  }
+}
 
 // Client Supabase non-typé pour la table app_versions
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -59,10 +84,13 @@ function compareVersions(v1: string, v2: string): number {
  * Vérifie si une mise à jour est disponible
  */
 export async function checkForUpdate(): Promise<UpdateCheckResult> {
+  // Lit la version native (depuis build.gradle, pas depuis le JS)
+  const currentVersion = await getAppVersion();
+
   const result: UpdateCheckResult = {
     updateAvailable: false,
-    currentVersion: APP_VERSION,
-    latestVersion: APP_VERSION,
+    currentVersion,
+    latestVersion: currentVersion,
     forceUpdate: false,
     releaseNotes: '',
     downloadUrl: '',
@@ -95,13 +123,13 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
     result.downloadUrl = updateInfo.download_url;
     result.forceUpdate = updateInfo.force_update;
 
-    // Compare les versions
-    if (compareVersions(updateInfo.version, APP_VERSION) > 0) {
+    // Compare les versions - utilise la version NATIVE
+    if (compareVersions(updateInfo.version, currentVersion) > 0) {
       result.updateAvailable = true;
 
       // Vérifie si c'est une mise à jour forcée (version minimum requise)
       if (updateInfo.min_version) {
-        if (compareVersions(updateInfo.min_version, APP_VERSION) > 0) {
+        if (compareVersions(updateInfo.min_version, currentVersion) > 0) {
           result.forceUpdate = true;
         }
       }
