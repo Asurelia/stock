@@ -1,4 +1,3 @@
-/// <reference types="@capgo/capacitor-updater" />
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
@@ -29,10 +28,6 @@ const config: CapacitorConfig = {
     },
     CapacitorHttp: {
       enabled: true,
-    },
-    CapacitorUpdater: {
-      // Désactivé - les mises à jour passent par APK natif
-      autoUpdate: false,
     },
     PushNotifications: {
       // Demander automatiquement les permissions au premier lancement
