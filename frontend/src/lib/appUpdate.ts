@@ -11,8 +11,8 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { createClient } from '@supabase/supabase-js';
 
-// Version actuelle de l'app (doit correspondre à package.json)
-export const APP_VERSION = '1.2.0';
+// Version actuelle de l'app - DOIT être mise à jour avec package.json
+export const APP_VERSION = '1.2.6';
 
 // Client Supabase non-typé pour la table app_versions
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
