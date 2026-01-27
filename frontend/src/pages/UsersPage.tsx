@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, Pencil, Trash2, UserCog, Shield, ChefHat, Waves, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Plus, Pencil, Trash2, UserCog, Shield, ChefHat, Waves, Eye, EyeOff, MoreVertical } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 interface UserProfile {
     id: string
@@ -262,19 +263,19 @@ export function UsersPage() {
     }
 
     return (
-        <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6 pb-safe">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold flex items-center gap-2">
-                        <UserCog className="w-8 h-8" />
+                    <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+                        <UserCog className="w-6 h-6 md:w-8 md:h-8" />
                         Gestion des utilisateurs
                     </h1>
-                    <p className="text-muted-foreground mt-1">
-                        Créez et gérez les comptes utilisateurs de l'application
+                    <p className="text-sm md:text-base text-muted-foreground mt-1">
+                        Créez et gérez les comptes utilisateurs
                     </p>
                 </div>
-                <Button onClick={openCreateDialog}>
-                    <Plus className="w-4 h-4 mr-2" />
+                <Button onClick={openCreateDialog} className="h-12 w-full sm:w-auto">
+                    <Plus className="w-5 h-5 mr-2" />
                     Nouvel utilisateur
                 </Button>
             </div>
@@ -302,81 +303,147 @@ export function UsersPage() {
                             Aucun utilisateur trouvé
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Utilisateur</TableHead>
-                                    <TableHead>Rôle</TableHead>
-                                    <TableHead>Code PIN</TableHead>
-                                    <TableHead>Statut</TableHead>
-                                    <TableHead>Dernière connexion</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                        <>
+                            {/* Mobile view - Cards */}
+                            <div className="space-y-3 md:hidden">
                                 {users.map((userProfile) => (
-                                    <TableRow key={userProfile.id}>
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">{userProfile.avatarEmoji}</span>
-                                                <div>
-                                                    <div className="font-medium">{userProfile.displayName}</div>
-                                                    {userProfile.id === user?.id && (
-                                                        <span className="text-xs text-muted-foreground">(Vous)</span>
-                                                    )}
+                                    <Card key={userProfile.id} className="p-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                <span className="text-3xl flex-shrink-0">{userProfile.avatarEmoji}</span>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="font-medium truncate">
+                                                        {userProfile.displayName}
+                                                        {userProfile.id === user?.id && (
+                                                            <span className="text-xs text-muted-foreground ml-1">(Vous)</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                        <Badge className={ROLE_CONFIG[userProfile.role].color}>
+                                                            {ROLE_CONFIG[userProfile.role].icon}
+                                                            <span className="ml-1">{ROLE_CONFIG[userProfile.role].label}</span>
+                                                        </Badge>
+                                                        <Badge variant={userProfile.isActive ? 'default' : 'secondary'}>
+                                                            {userProfile.isActive ? 'Actif' : 'Inactif'}
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                                                        <span>PIN:</span>
+                                                        <code className="bg-muted px-2 py-0.5 rounded">
+                                                            {userProfile.pinCode || '****'}
+                                                        </code>
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                        Dernière connexion: {formatDate(userProfile.lastLogin)}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge className={ROLE_CONFIG[userProfile.role].color}>
-                                                {ROLE_CONFIG[userProfile.role].icon}
-                                                <span className="ml-1">{ROLE_CONFIG[userProfile.role].label}</span>
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <code className="bg-muted px-2 py-1 rounded text-sm">
-                                                {userProfile.pinCode || '****'}
-                                            </code>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={userProfile.isActive ? 'default' : 'secondary'}>
-                                                {userProfile.isActive ? 'Actif' : 'Inactif'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            {formatDate(userProfile.lastLogin)}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => openEditDialog(userProfile)}
-                                                >
-                                                    <Pencil className="w-4 h-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => setDeleteConfirm(userProfile)}
-                                                    disabled={userProfile.id === user?.id}
-                                                    className="text-destructive hover:text-destructive"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-10 w-10 flex-shrink-0">
+                                                        <MoreVertical className="h-5 w-5" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => openEditDialog(userProfile)}>
+                                                        <Pencil className="w-4 h-4 mr-2" />
+                                                        Modifier
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() => setDeleteConfirm(userProfile)}
+                                                        disabled={userProfile.id === user?.id}
+                                                        className="text-destructive focus:text-destructive"
+                                                    >
+                                                        <Trash2 className="w-4 h-4 mr-2" />
+                                                        Supprimer
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    </Card>
                                 ))}
-                            </TableBody>
-                        </Table>
+                            </div>
+
+                            {/* Desktop view - Table */}
+                            <div className="hidden md:block">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Utilisateur</TableHead>
+                                            <TableHead>Rôle</TableHead>
+                                            <TableHead>Code PIN</TableHead>
+                                            <TableHead>Statut</TableHead>
+                                            <TableHead>Dernière connexion</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {users.map((userProfile) => (
+                                            <TableRow key={userProfile.id}>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-2xl">{userProfile.avatarEmoji}</span>
+                                                        <div>
+                                                            <div className="font-medium">{userProfile.displayName}</div>
+                                                            {userProfile.id === user?.id && (
+                                                                <span className="text-xs text-muted-foreground">(Vous)</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge className={ROLE_CONFIG[userProfile.role].color}>
+                                                        {ROLE_CONFIG[userProfile.role].icon}
+                                                        <span className="ml-1">{ROLE_CONFIG[userProfile.role].label}</span>
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <code className="bg-muted px-2 py-1 rounded text-sm">
+                                                        {userProfile.pinCode || '****'}
+                                                    </code>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={userProfile.isActive ? 'default' : 'secondary'}>
+                                                        {userProfile.isActive ? 'Actif' : 'Inactif'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">
+                                                    {formatDate(userProfile.lastLogin)}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-10 w-10"
+                                                            onClick={() => openEditDialog(userProfile)}
+                                                        >
+                                                            <Pencil className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-10 w-10"
+                                                            onClick={() => setDeleteConfirm(userProfile)}
+                                                            disabled={userProfile.id === user?.id}
+                                                        >
+                                                            <Trash2 className="w-4 h-4 text-destructive" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </>
                     )}
                 </CardContent>
             </Card>
 
             {/* Create/Edit Dialog */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-md max-h-[85vh] md:max-h-[90vh] overflow-y-auto pb-safe">
                     <DialogHeader>
                         <DialogTitle>
                             {editingUser ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}
@@ -396,6 +463,7 @@ export function UsersPage() {
                                 value={formData.displayName}
                                 onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
                                 placeholder="Ex: Jean Dupont"
+                                className="h-12"
                             />
                         </div>
 
@@ -405,23 +473,23 @@ export function UsersPage() {
                                 value={formData.role}
                                 onValueChange={(value) => setFormData({ ...formData, role: value as UserRole })}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className="h-12">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="gerant">
+                                    <SelectItem value="gerant" className="py-3">
                                         <div className="flex items-center gap-2">
                                             <Shield className="w-4 h-4" />
                                             Gérant (accès complet)
                                         </div>
                                     </SelectItem>
-                                    <SelectItem value="cuisinier">
+                                    <SelectItem value="cuisinier" className="py-3">
                                         <div className="flex items-center gap-2">
                                             <ChefHat className="w-4 h-4" />
                                             Cuisinier
                                         </div>
                                     </SelectItem>
-                                    <SelectItem value="plongeur">
+                                    <SelectItem value="plongeur" className="py-3">
                                         <div className="flex items-center gap-2">
                                             <Waves className="w-4 h-4" />
                                             Plongeur
@@ -445,20 +513,22 @@ export function UsersPage() {
                                         onChange={(e) => setFormData({ ...formData, pinCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
                                         placeholder="4-6 chiffres"
                                         inputMode="numeric"
+                                        className="h-12 pr-12"
                                     />
                                     <Button
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="absolute right-0 top-0 h-full"
+                                        className="absolute right-0 top-0 h-12 w-12"
                                         onClick={() => setShowPin(!showPin)}
                                     >
-                                        {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        {showPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                     </Button>
                                 </div>
                                 <Button
                                     type="button"
                                     variant="outline"
+                                    className="h-12 px-4"
                                     onClick={() => setFormData({ ...formData, pinCode: generatePin() })}
                                 >
                                     Générer
@@ -475,7 +545,7 @@ export function UsersPage() {
                                         type="button"
                                         variant={formData.avatarEmoji === emoji ? 'default' : 'outline'}
                                         size="icon"
-                                        className="text-xl"
+                                        className="text-xl h-12 w-12"
                                         onClick={() => setFormData({ ...formData, avatarEmoji: emoji })}
                                     >
                                         {emoji}
@@ -490,13 +560,13 @@ export function UsersPage() {
                                 value={formData.staffId || "none"}
                                 onValueChange={(value) => setFormData({ ...formData, staffId: value === "none" ? "" : value })}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className="h-12">
                                     <SelectValue placeholder="Aucun" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="none">Aucun</SelectItem>
+                                    <SelectItem value="none" className="py-3">Aucun</SelectItem>
                                     {staffList.map((staff) => (
-                                        <SelectItem key={staff.id} value={staff.id}>
+                                        <SelectItem key={staff.id} value={staff.id} className="py-3">
                                             {staff.firstName} {staff.lastName}
                                         </SelectItem>
                                     ))}
@@ -504,7 +574,7 @@ export function UsersPage() {
                             </Select>
                         </div>
 
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between py-2">
                             <Label htmlFor="isActive">Compte actif</Label>
                             <Switch
                                 id="isActive"
@@ -514,11 +584,11 @@ export function UsersPage() {
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="h-12">
                             Annuler
                         </Button>
-                        <Button onClick={handleSave} disabled={isSaving}>
+                        <Button onClick={handleSave} disabled={isSaving} className="h-12">
                             {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             {editingUser ? 'Enregistrer' : 'Créer'}
                         </Button>
@@ -528,7 +598,7 @@ export function UsersPage() {
 
             {/* Delete Confirmation Dialog */}
             <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-                <DialogContent>
+                <DialogContent className="pb-safe">
                     <DialogHeader>
                         <DialogTitle>Confirmer la suppression</DialogTitle>
                         <DialogDescription>
@@ -536,11 +606,11 @@ export function UsersPage() {
                             Cette action est irréversible.
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setDeleteConfirm(null)} className="h-12">
                             Annuler
                         </Button>
-                        <Button variant="destructive" onClick={handleDelete}>
+                        <Button variant="destructive" onClick={handleDelete} className="h-12">
                             Supprimer
                         </Button>
                     </DialogFooter>

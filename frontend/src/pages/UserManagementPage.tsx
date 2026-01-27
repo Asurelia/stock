@@ -106,36 +106,36 @@ export function UserManagementPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6 pb-safe">
             <div>
-                <h1 className="text-3xl font-bold flex items-center gap-3">
-                    <Users className="w-8 h-8" />
+                <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2 md:gap-3">
+                    <Users className="w-6 h-6 md:w-8 md:h-8" />
                     Gestion des Utilisateurs
                 </h1>
-                <p className="text-muted-foreground mt-1">
+                <p className="text-sm md:text-base text-muted-foreground mt-1">
                     Gérez les droits et permissions de chaque collaborateur
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                 {/* Users List */}
                 <Card className="lg:col-span-1">
-                    <CardHeader>
+                    <CardHeader className="pb-3">
                         <CardTitle className="text-lg">Utilisateurs</CardTitle>
-                        <CardDescription>Sélectionnez un utilisateur pour modifier ses droits</CardDescription>
+                        <CardDescription className="text-sm">Sélectionnez un utilisateur pour modifier ses droits</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-2">
                         {users.map(user => (
                             <Button
                                 key={user.id}
                                 variant={selectedUser?.id === user.id ? 'default' : 'outline'}
-                                className="w-full justify-start h-auto py-3"
+                                className="w-full justify-start h-auto min-h-[56px] py-3"
                                 onClick={() => setSelectedUser(user)}
                             >
                                 <span className="text-2xl mr-3">{user.avatarEmoji}</span>
-                                <div className="flex-1 text-left">
-                                    <div className="font-medium">{user.displayName}</div>
-                                    <div className="flex items-center gap-2 mt-1">
+                                <div className="flex-1 text-left min-w-0">
+                                    <div className="font-medium truncate">{user.displayName}</div>
+                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                                         <Badge variant="secondary" className={`${getRoleColor(user.role)} text-white text-xs`}>
                                             {getRoleLabel(user.role)}
                                         </Badge>
@@ -144,7 +144,7 @@ export function UserManagementPage() {
                                         )}
                                     </div>
                                 </div>
-                                <ChevronRight className="w-4 h-4 opacity-50" />
+                                <ChevronRight className="w-5 h-5 opacity-50 flex-shrink-0" />
                             </Button>
                         ))}
                     </CardContent>
@@ -192,11 +192,11 @@ export function UserManagementPage() {
                                     </div>
                                 ) : (
                                     <Tabs defaultValue="Pages" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-2">
-                                            <TabsTrigger value="Pages">Pages</TabsTrigger>
-                                            <TabsTrigger value="Actions">Actions</TabsTrigger>
+                                        <TabsList className="grid w-full grid-cols-2 h-12">
+                                            <TabsTrigger value="Pages" className="h-10">Pages</TabsTrigger>
+                                            <TabsTrigger value="Actions" className="h-10">Actions</TabsTrigger>
                                         </TabsList>
-                                        
+
                                         {Object.entries(permissionsByCategory).map(([category, perms]) => (
                                             <TabsContent key={category} value={category} className="mt-4 space-y-3">
                                                 {perms.map(perm => {
@@ -204,18 +204,18 @@ export function UserManagementPage() {
                                                     return (
                                                         <div
                                                             key={perm.key}
-                                                            className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                                                            className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors min-h-[72px]"
                                                         >
-                                                            <div className="flex-1">
-                                                                <div className="font-medium flex items-center gap-2">
-                                                                    {perm.label}
+                                                            <div className="flex-1 min-w-0 mr-4">
+                                                                <div className="font-medium flex items-center gap-2 flex-wrap">
+                                                                    <span className="truncate">{perm.label}</span>
                                                                     {isEnabled ? (
-                                                                        <Check className="w-4 h-4 text-green-500" />
+                                                                        <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
                                                                     ) : (
-                                                                        <X className="w-4 h-4 text-red-500" />
+                                                                        <X className="w-4 h-4 text-red-500 flex-shrink-0" />
                                                                     )}
                                                                 </div>
-                                                                <p className="text-sm text-muted-foreground">{perm.description}</p>
+                                                                <p className="text-sm text-muted-foreground mt-1">{perm.description}</p>
                                                             </div>
                                                             <Switch
                                                                 checked={isEnabled}
