@@ -31,12 +31,10 @@ const config: CapacitorConfig = {
       enabled: true,
     },
     CapacitorUpdater: {
-      // Active les mises à jour automatiques
-      autoUpdate: true,
-      // Délai avant de vérifier les mises à jour (en secondes)
+      // Mode manuel : on gère les mises à jour OTA nous-mêmes via Supabase
+      autoUpdate: false,
+      // Délai avant de considérer le bundle comme échoué
       appReadyTimeout: 10000,
-      // Délai entre les vérifications (en secondes) - 1 heure
-      periodCheckDelay: 3600,
       // Supprime automatiquement les versions qui ont échoué
       autoDeleteFailed: true,
       // Supprime automatiquement les anciennes versions

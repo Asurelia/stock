@@ -9,8 +9,12 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Download, RefreshCw, Smartphone, AlertTriangle, CheckCircle } from 'lucide-react';
-import { type UpdateCheckResult, downloadAndInstallUpdate } from '@/lib/appUpdate';
+import { Download, RefreshCw, Smartphone, AlertTriangle, CheckCircle, Zap } from 'lucide-react';
+import {
+  type UpdateCheckResult,
+  downloadAndApplyBundle,
+  downloadAndInstallApk,
+} from '@/lib/appUpdate';
 
 interface UpdateDialogProps {
   updateInfo: UpdateCheckResult | null;
@@ -26,14 +30,26 @@ export function UpdateDialog({ updateInfo, open, onOpenChange }: UpdateDialogPro
 
   if (!updateInfo) return null;
 
+  const isBundleUpdate = updateInfo.updateType === 'bundle';
+
   const handleDownload = async () => {
     setDownloading(true);
     setError(null);
     setProgress(0);
 
-    const success = await downloadAndInstallUpdate(updateInfo.downloadUrl, (p) => {
-      setProgress(p);
-    });
+    let success: boolean;
+
+    if (isBundleUpdate) {
+      // Mise à jour OTA du bundle web (rapide, pas de réinstallation)
+      success = await downloadAndApplyBundle(
+        updateInfo.bundleUrl,
+        updateInfo.latestVersion,
+        (p) => setProgress(p)
+      );
+    } else {
+      // Mise à jour APK complète (téléchargement + installation)
+      success = await downloadAndInstallApk(updateInfo.downloadUrl, (p) => setProgress(p));
+    }
 
     if (success) {
       setDownloadComplete(true);
@@ -52,12 +68,19 @@ export function UpdateDialog({ updateInfo, open, onOpenChange }: UpdateDialogPro
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => updateInfo.forceUpdate && e.preventDefault()}>
+      <DialogContent
+        className="sm:max-w-md"
+        onPointerDownOutside={(e) => updateInfo.forceUpdate && e.preventDefault()}
+      >
         <DialogHeader>
           <div className="flex items-center gap-3">
             {updateInfo.forceUpdate ? (
               <div className="p-2 bg-destructive/10 rounded-full">
                 <AlertTriangle className="w-6 h-6 text-destructive" />
+              </div>
+            ) : isBundleUpdate ? (
+              <div className="p-2 bg-blue-500/10 rounded-full">
+                <Zap className="w-6 h-6 text-blue-500" />
               </div>
             ) : (
               <div className="p-2 bg-primary/10 rounded-full">
@@ -66,10 +89,13 @@ export function UpdateDialog({ updateInfo, open, onOpenChange }: UpdateDialogPro
             )}
             <div>
               <DialogTitle>
-                {updateInfo.forceUpdate ? 'Mise à jour requise' : 'Nouvelle version disponible'}
+                {updateInfo.forceUpdate
+                  ? 'Mise à jour requise'
+                  : 'Nouvelle version disponible'}
               </DialogTitle>
               <DialogDescription className="text-left">
                 Version {updateInfo.latestVersion}
+                {isBundleUpdate && ' — Mise à jour rapide'}
               </DialogDescription>
             </div>
           </div>
@@ -79,7 +105,7 @@ export function UpdateDialog({ updateInfo, open, onOpenChange }: UpdateDialogPro
           {/* Notes de version */}
           {updateInfo.releaseNotes && (
             <div className="p-3 bg-muted rounded-lg">
-              <p className="text-sm font-medium mb-1">Nouveautés :</p>
+              <p className="text-sm font-medium mb-1">Nouveaut&eacute;s :</p>
               <p className="text-sm text-muted-foreground whitespace-pre-line">
                 {updateInfo.releaseNotes}
               </p>
@@ -96,11 +122,22 @@ export function UpdateDialog({ updateInfo, open, onOpenChange }: UpdateDialogPro
             <span className="font-mono text-primary">{updateInfo.latestVersion}</span>
           </div>
 
+          {/* Info type de mise à jour */}
+          {isBundleUpdate && !downloading && !downloadComplete && (
+            <p className="text-sm text-blue-600 bg-blue-500/10 p-3 rounded-lg">
+              Mise à jour instantan&eacute;e — l'application se rechargera automatiquement.
+            </p>
+          )}
+
           {/* Barre de progression */}
           {downloading && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span>Téléchargement en cours...</span>
+                <span>
+                  {isBundleUpdate
+                    ? 'Application de la mise à jour...'
+                    : 'Téléchargement en cours...'}
+                </span>
                 <span>{progress}%</span>
               </div>
               <Progress value={progress} className="h-2" />
@@ -112,7 +149,9 @@ export function UpdateDialog({ updateInfo, open, onOpenChange }: UpdateDialogPro
             <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-lg text-green-600">
               <CheckCircle className="w-5 h-5" />
               <span className="text-sm">
-                Téléchargement terminé ! L'installation va démarrer...
+                {isBundleUpdate
+                  ? "Mise à jour appliquée ! L'application va recharger..."
+                  : "Téléchargement terminé ! L'installation va démarrer..."}
               </span>
             </div>
           )}
@@ -141,20 +180,20 @@ export function UpdateDialog({ updateInfo, open, onOpenChange }: UpdateDialogPro
           )}
 
           {!downloadComplete && (
-            <Button
-              onClick={handleDownload}
-              disabled={downloading}
-              className="gap-2"
-            >
+            <Button onClick={handleDownload} disabled={downloading} className="gap-2">
               {downloading ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  Téléchargement...
+                  {isBundleUpdate ? 'Mise à jour...' : 'Téléchargement...'}
                 </>
               ) : (
                 <>
-                  <Download className="w-4 h-4" />
-                  Télécharger la mise à jour
+                  {isBundleUpdate ? (
+                    <Zap className="w-4 h-4" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  {isBundleUpdate ? 'Mettre à jour maintenant' : 'Télécharger la mise à jour'}
                 </>
               )}
             </Button>

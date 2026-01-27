@@ -3,9 +3,17 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import { readFileSync } from 'fs'
+
+// Lit la version depuis package.json pour l'injecter au build
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'));
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    // Version du bundle injectée à la compilation
+    __APP_BUNDLE_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     tailwindcss(),

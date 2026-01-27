@@ -10,7 +10,7 @@ import { isNative } from '@/hooks/useCapacitor';
 import { OfflineProvider } from '@/components/offline';
 import { App as CapApp } from '@capacitor/app';
 import { UpdateDialog } from '@/components/update';
-import { checkUpdateOnStartup, type UpdateCheckResult } from '@/lib/appUpdate';
+import { checkUpdateOnStartup, checkForUpdate, type UpdateCheckResult } from '@/lib/appUpdate';
 
 // Lazy load toutes les pages pour optimiser le bundle initial
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -140,19 +140,35 @@ function App() {
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
 
   useEffect(() => {
-    // Signale à Capgo que l'app a bien démarré
-    // Sinon, Capgo fera un rollback vers la version précédente
-    if (isNative) {
-      CapacitorUpdater.notifyAppReady();
+    if (!isNative) return;
 
-      // Vérifie les mises à jour APK au démarrage
-      checkUpdateOnStartup().then((result) => {
-        if (result) {
-          setUpdateInfo(result);
-          setShowUpdateDialog(true);
-        }
-      });
-    }
+    // Signale à CapacitorUpdater que le bundle a bien démarré
+    // Sans cet appel, le plugin fera un rollback vers le bundle précédent
+    CapacitorUpdater.notifyAppReady();
+
+    // Vérifie les mises à jour au démarrage (throttled à 30min)
+    checkUpdateOnStartup().then((result) => {
+      if (result) {
+        setUpdateInfo(result);
+        setShowUpdateDialog(true);
+      }
+    });
+
+    // Vérifie aussi quand l'app revient au premier plan
+    const listener = CapApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) {
+        checkForUpdate().then((result) => {
+          if (result.updateAvailable) {
+            setUpdateInfo(result);
+            setShowUpdateDialog(true);
+          }
+        });
+      }
+    });
+
+    return () => {
+      listener.then((l) => l.remove());
+    };
   }, []);
 
   return (
