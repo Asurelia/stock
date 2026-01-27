@@ -5,7 +5,6 @@ import { Layout } from '@/components/layout/Layout';
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/lib/auth';
-import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { isNative } from '@/hooks/useCapacitor';
 import { OfflineProvider } from '@/components/offline';
 import { App as CapApp } from '@capacitor/app';
@@ -140,11 +139,7 @@ function App() {
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
 
   useEffect(() => {
-    // Signale à Capgo que l'app a bien démarré
-    // Sinon, Capgo fera un rollback vers la version précédente
     if (isNative) {
-      CapacitorUpdater.notifyAppReady();
-
       // Vérifie les mises à jour APK au démarrage
       checkUpdateOnStartup().then((result) => {
         if (result) {

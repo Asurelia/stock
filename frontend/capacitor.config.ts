@@ -31,16 +31,8 @@ const config: CapacitorConfig = {
       enabled: true,
     },
     CapacitorUpdater: {
-      // Active les mises à jour automatiques
-      autoUpdate: true,
-      // Délai avant de vérifier les mises à jour (en secondes)
-      appReadyTimeout: 10000,
-      // Délai entre les vérifications (en secondes) - 1 heure
-      periodCheckDelay: 3600,
-      // Supprime automatiquement les versions qui ont échoué
-      autoDeleteFailed: true,
-      // Supprime automatiquement les anciennes versions
-      autoDeletePrevious: true,
+      // Désactivé - les mises à jour passent par APK natif
+      autoUpdate: false,
     },
     PushNotifications: {
       // Demander automatiquement les permissions au premier lancement
