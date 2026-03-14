@@ -1,5 +1,4 @@
-import { getSupabase } from './core'
-import type { Json } from '../database.types'
+import { db, generateId, nowISO } from './core'
 
 // =============================================
 // Staff & Planning Types
@@ -121,106 +120,85 @@ export const STAFF_ROLES = [
     'Stagiaire'
 ]
 
+function mapRowToStaff(s: Record<string, unknown>): Staff {
+    return {
+        id: s.id as string,
+        firstName: s.first_name as string,
+        lastName: s.last_name as string,
+        role: s.role as string,
+        email: (s.email as string) || '',
+        phone: (s.phone as string) || '',
+        color: (s.color as string) || '#3B82F6',
+        avatarUrl: s.avatar_url as string | null | undefined,
+        contractHours: Number(s.contract_hours) || 35,
+        isActive: s.is_active as boolean,
+        signatureData: s.signature_data as string | null | undefined,
+        pinCode: s.pin_code as string | null | undefined,
+        staffGroup: (s.staff_group as StaffGroup) || 'week1',
+        workDaysWeek1: (s.work_days_week1 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
+        workDaysWeek2: (s.work_days_week2 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
+        createdAt: s.created_at as string
+    }
+}
+
+function mapRowToScheduleEvent(e: Record<string, unknown>, staffMap: Map<string, { first_name: string; last_name: string; color: string }>): ScheduleEvent {
+    const staffId = e.staff_id as string
+    const staffData = staffMap.get(staffId)
+    return {
+        id: e.id as string,
+        staffId,
+        staffName: staffData ? `${staffData.first_name} ${staffData.last_name}` : '',
+        staffColor: staffData?.color || '#3B82F6',
+        eventType: e.event_type as ScheduleEventType,
+        title: e.title as string | null | undefined,
+        startDate: e.start_date as string,
+        endDate: e.end_date as string,
+        startTime: e.start_time as string | null | undefined,
+        endTime: e.end_time as string | null | undefined,
+        hours: Number(e.hours) || 0,
+        notes: e.notes as string | null | undefined,
+        isValidated: (e.is_validated as boolean) ?? false,
+        validatedBy: e.validated_by as string | null | undefined,
+        validatedAt: e.validated_at as string | null | undefined,
+        createdAt: (e.created_at as string) ?? ''
+    }
+}
+
 export const staffApi = {
     getAll: async (): Promise<Staff[]> => {
-        const { data, error } = await getSupabase()
-            .from('staff')
-            .select('*')
-            .order('last_name')
-
-        if (error) throw error
-        return (data || []).map(s => {
-            const rec = s as Record<string, unknown>
-            return {
-                id: s.id,
-                firstName: s.first_name,
-                lastName: s.last_name,
-                role: s.role,
-                email: s.email || '',
-                phone: s.phone || '',
-                color: s.color || '#3B82F6',
-                avatarUrl: s.avatar_url,
-                contractHours: Number(s.contract_hours) || 35,
-                isActive: s.is_active,
-                signatureData: s.signature_data,
-                pinCode: s.pin_code,
-                staffGroup: (rec.staff_group as StaffGroup) || 'week1',
-                workDaysWeek1: (rec.work_days_week1 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
-                workDaysWeek2: (rec.work_days_week2 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
-                createdAt: s.created_at
-            }
-        })
+        const rows = await db.staff.orderBy('last_name').toArray()
+        return rows.map(s => mapRowToStaff(s as Record<string, unknown>))
     },
 
     getById: async (id: string): Promise<Staff> => {
-        const { data, error } = await getSupabase()
-            .from('staff')
-            .select('*')
-            .eq('id', id)
-            .single()
-
-        if (error) throw error
-        const rec = data as Record<string, unknown>
-        return {
-            id: data.id,
-            firstName: data.first_name,
-            lastName: data.last_name,
-            role: data.role,
-            email: data.email || '',
-            phone: data.phone || '',
-            color: data.color || '#3B82F6',
-            avatarUrl: data.avatar_url,
-            contractHours: Number(data.contract_hours) || 35,
-            isActive: data.is_active,
-            signatureData: data.signature_data,
-            pinCode: data.pin_code,
-            staffGroup: (rec.staff_group as StaffGroup) || 'week1',
-            workDaysWeek1: (rec.work_days_week1 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
-            workDaysWeek2: (rec.work_days_week2 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
-            createdAt: data.created_at
-        }
+        const s = await db.staff.get(id)
+        if (!s) throw new Error(`Staff not found: ${id}`)
+        return mapRowToStaff(s as Record<string, unknown>)
     },
 
     create: async (staffData: Omit<Staff, 'id' | 'createdAt'>): Promise<Staff> => {
-        const { data, error } = await getSupabase()
-            .from('staff')
-            .insert([{
-                first_name: staffData.firstName,
-                last_name: staffData.lastName,
-                role: staffData.role,
-                email: staffData.email || null,
-                phone: staffData.phone || null,
-                color: staffData.color,
-                contract_hours: staffData.contractHours,
-                signature_data: staffData.signatureData || null,
-                pin_code: staffData.pinCode || null,
-                staff_group: staffData.staffGroup || 'week1',
-                work_days_week1: staffData.workDaysWeek1 || ['mon', 'tue', 'wed', 'thu', 'fri'],
-                work_days_week2: staffData.workDaysWeek2 || ['mon', 'tue', 'wed', 'thu', 'fri']
-            }])
-            .select()
-            .single()
-
-        if (error) throw error
-        const rec = data as Record<string, unknown>
-        return {
-            id: data.id,
-            firstName: data.first_name,
-            lastName: data.last_name,
-            role: data.role,
-            email: data.email || '',
-            phone: data.phone || '',
-            color: data.color || '#3B82F6',
-            avatarUrl: data.avatar_url,
-            contractHours: Number(data.contract_hours) || 35,
-            isActive: data.is_active,
-            signatureData: data.signature_data,
-            pinCode: data.pin_code,
-            staffGroup: (rec.staff_group as StaffGroup) || 'week1',
-            workDaysWeek1: (rec.work_days_week1 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
-            workDaysWeek2: (rec.work_days_week2 as WorkDay[]) || ['mon', 'tue', 'wed', 'thu', 'fri'],
-            createdAt: data.created_at
+        const id = generateId()
+        const now = nowISO()
+        const row = {
+            id,
+            first_name: staffData.firstName,
+            last_name: staffData.lastName,
+            role: staffData.role,
+            email: staffData.email || null,
+            phone: staffData.phone || null,
+            color: staffData.color,
+            avatar_url: staffData.avatarUrl || null,
+            contract_hours: staffData.contractHours,
+            is_active: staffData.isActive,
+            signature_data: staffData.signatureData || null,
+            pin_code: staffData.pinCode || null,
+            staff_group: staffData.staffGroup || 'week1',
+            work_days_week1: staffData.workDaysWeek1 || ['mon', 'tue', 'wed', 'thu', 'fri'],
+            work_days_week2: staffData.workDaysWeek2 || ['mon', 'tue', 'wed', 'thu', 'fri'],
+            created_at: now
         }
+        await db.staff.add(row)
+        return mapRowToStaff(row as Record<string, unknown>)
     },
 
     update: async (id: string, staffData: Partial<Staff>): Promise<void> => {
@@ -239,162 +217,81 @@ export const staffApi = {
         if (staffData.workDaysWeek1 !== undefined) updateData.work_days_week1 = staffData.workDaysWeek1
         if (staffData.workDaysWeek2 !== undefined) updateData.work_days_week2 = staffData.workDaysWeek2
 
-        const { error } = await getSupabase()
-            .from('staff')
-            .update(updateData)
-            .eq('id', id)
-
-        if (error) throw error
+        await db.staff.update(id, updateData)
     },
 
     delete: async (id: string): Promise<void> => {
-        const { error } = await getSupabase()
-            .from('staff')
-            .delete()
-            .eq('id', id)
-
-        if (error) throw error
+        await db.staff.delete(id)
     }
 }
 
 export const scheduleEventsApi = {
     getAll: async (): Promise<ScheduleEvent[]> => {
-        const { data, error } = await getSupabase()
-            .from('schedule_events')
-            .select(`
-                *,
-                staff!schedule_events_staff_id_fkey (first_name, last_name, color)
-            `)
-            .order('start_date', { ascending: false })
-
-        if (error) throw error
-        return (data || []).map(e => {
-            const staffData = e.staff as { first_name: string; last_name: string; color: string } | null
-            return {
-                id: e.id,
-                staffId: e.staff_id,
-                staffName: staffData ? `${staffData.first_name} ${staffData.last_name}` : '',
-                staffColor: staffData?.color || '#3B82F6',
-                eventType: e.event_type as ScheduleEventType,
-                title: e.title,
-                startDate: e.start_date,
-                endDate: e.end_date,
-                startTime: e.start_time,
-                endTime: e.end_time,
-                hours: Number(e.hours) || 0,
-                notes: e.notes,
-                isValidated: e.is_validated ?? false,
-                validatedBy: e.validated_by,
-                validatedAt: e.validated_at,
-                createdAt: e.created_at ?? ''
-            }
-        })
+        const [rows, staffRows] = await Promise.all([
+            db.scheduleEvents.orderBy('start_date').reverse().toArray(),
+            db.staff.toArray()
+        ])
+        const staffMap = new Map<string, { first_name: string; last_name: string; color: string }>(
+            staffRows.map(s => [s.id as string, { first_name: s.first_name as string, last_name: s.last_name as string, color: s.color as string }])
+        )
+        return rows.map(e => mapRowToScheduleEvent(e as Record<string, unknown>, staffMap))
     },
 
     getByDateRange: async (from: string, to: string): Promise<ScheduleEvent[]> => {
-        const { data, error } = await getSupabase()
-            .from('schedule_events')
-            .select(`
-                *,
-                staff!schedule_events_staff_id_fkey (first_name, last_name, color)
-            `)
-            .or(`start_date.gte.${from},end_date.lte.${to}`)
-            .or(`start_date.lte.${to},end_date.gte.${from}`)
-            .order('start_date')
-
-        if (error) throw error
-        return (data || []).map(e => {
-            const staffData = e.staff as { first_name: string; last_name: string; color: string } | null
-            return {
-                id: e.id,
-                staffId: e.staff_id,
-                staffName: staffData ? `${staffData.first_name} ${staffData.last_name}` : '',
-                staffColor: staffData?.color || '#3B82F6',
-                eventType: e.event_type as ScheduleEventType,
-                title: e.title,
-                startDate: e.start_date,
-                endDate: e.end_date,
-                startTime: e.start_time,
-                endTime: e.end_time,
-                hours: Number(e.hours) || 0,
-                notes: e.notes,
-                isValidated: e.is_validated ?? false,
-                validatedBy: e.validated_by,
-                validatedAt: e.validated_at,
-                createdAt: e.created_at ?? ''
-            }
-        })
+        const [rows, staffRows] = await Promise.all([
+            db.scheduleEvents.filter(e => {
+                const start = e.start_date as string
+                const end = e.end_date as string
+                return start <= to && end >= from
+            }).toArray(),
+            db.staff.toArray()
+        ])
+        const staffMap = new Map<string, { first_name: string; last_name: string; color: string }>(
+            staffRows.map(s => [s.id as string, { first_name: s.first_name as string, last_name: s.last_name as string, color: s.color as string }])
+        )
+        rows.sort((a, b) => (a.start_date as string).localeCompare(b.start_date as string))
+        return rows.map(e => mapRowToScheduleEvent(e as Record<string, unknown>, staffMap))
     },
 
     getByStaff: async (staffId: string): Promise<ScheduleEvent[]> => {
-        const { data, error } = await getSupabase()
-            .from('schedule_events')
-            .select('*')
-            .eq('staff_id', staffId)
-            .order('start_date', { ascending: false })
-
-        if (error) throw error
-        return (data || []).map(e => ({
-            id: e.id,
-            staffId: e.staff_id,
-            staffName: '',
-            staffColor: '#3B82F6',
-            eventType: e.event_type as ScheduleEventType,
-            title: e.title,
-            startDate: e.start_date,
-            endDate: e.end_date,
-            startTime: e.start_time,
-            endTime: e.end_time,
-            hours: Number(e.hours) || 0,
-            notes: e.notes,
-            isValidated: e.is_validated ?? false,
-            validatedBy: e.validated_by,
-            validatedAt: e.validated_at,
-            createdAt: e.created_at ?? ''
-        }))
+        const rows = await db.scheduleEvents
+            .where('staff_id')
+            .equals(staffId)
+            .reverse()
+            .sortBy('start_date')
+        const staffRecord = await db.staff.get(staffId)
+        const staffMap = new Map<string, { first_name: string; last_name: string; color: string }>()
+        if (staffRecord) {
+            staffMap.set(staffId, { first_name: staffRecord.first_name, last_name: staffRecord.last_name, color: staffRecord.color })
+        }
+        return rows.map(e => mapRowToScheduleEvent(e as Record<string, unknown>, staffMap))
     },
 
     create: async (eventData: Omit<ScheduleEvent, 'id' | 'staffName' | 'staffColor' | 'createdAt'>): Promise<ScheduleEvent> => {
-        const { data, error } = await getSupabase()
-            .from('schedule_events')
-            .insert([{
-                staff_id: eventData.staffId,
-                event_type: eventData.eventType,
-                title: eventData.title || null,
-                start_date: eventData.startDate,
-                end_date: eventData.endDate,
-                start_time: eventData.startTime || null,
-                end_time: eventData.endTime || null,
-                hours: eventData.hours || null,
-                notes: eventData.notes || null,
-                is_validated: eventData.isValidated || false
-            }])
-            .select(`
-                *,
-                staff!schedule_events_staff_id_fkey (first_name, last_name, color)
-            `)
-            .single()
-
-        if (error) throw error
-        const staffData = data.staff as { first_name: string; last_name: string; color: string } | null
-        return {
-            id: data.id,
-            staffId: data.staff_id,
-            staffName: staffData ? `${staffData.first_name} ${staffData.last_name}` : '',
-            staffColor: staffData?.color || '#3B82F6',
-            eventType: data.event_type as ScheduleEventType,
-            title: data.title,
-            startDate: data.start_date,
-            endDate: data.end_date,
-            startTime: data.start_time,
-            endTime: data.end_time,
-            hours: Number(data.hours) || 0,
-            notes: data.notes,
-            isValidated: data.is_validated ?? false,
-            validatedBy: data.validated_by,
-            validatedAt: data.validated_at,
-            createdAt: data.created_at ?? ''
+        const id = generateId()
+        const now = nowISO()
+        const row = {
+            id,
+            staff_id: eventData.staffId,
+            event_type: eventData.eventType,
+            title: eventData.title || null,
+            start_date: eventData.startDate,
+            end_date: eventData.endDate,
+            start_time: eventData.startTime || null,
+            end_time: eventData.endTime || null,
+            hours: eventData.hours || null,
+            notes: eventData.notes || null,
+            is_validated: eventData.isValidated || false,
+            validated_by: null,
+            validated_at: null,
+            created_at: now
         }
+        await db.scheduleEvents.add(row)
+        const staffRow = await db.staff.get(eventData.staffId)
+        const staffMap = staffRow
+            ? new Map([[eventData.staffId, { first_name: staffRow.first_name as string, last_name: staffRow.last_name as string, color: staffRow.color as string }]])
+            : new Map<string, { first_name: string; last_name: string; color: string }>()
+        return mapRowToScheduleEvent(row as Record<string, unknown>, staffMap)
     },
 
     update: async (id: string, eventData: Partial<ScheduleEvent>): Promise<void> => {
@@ -410,116 +307,96 @@ export const scheduleEventsApi = {
         if (eventData.notes !== undefined) updateData.notes = eventData.notes
         if (eventData.isValidated !== undefined) updateData.is_validated = eventData.isValidated
 
-        const { error } = await getSupabase()
-            .from('schedule_events')
-            .update(updateData)
-            .eq('id', id)
-
-        if (error) throw error
+        await db.scheduleEvents.update(id, updateData)
     },
 
     delete: async (id: string): Promise<void> => {
-        const { error } = await getSupabase()
-            .from('schedule_events')
-            .delete()
-            .eq('id', id)
-
-        if (error) throw error
+        await db.scheduleEvents.delete(id)
     },
 
     validate: async (id: string, validatedBy: string): Promise<void> => {
-        const { error } = await getSupabase()
-            .from('schedule_events')
-            .update({
-                is_validated: true,
-                validated_by: validatedBy,
-                validated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-
-        if (error) throw error
+        await db.scheduleEvents.update(id, {
+            is_validated: true,
+            validated_by: validatedBy,
+            validated_at: nowISO()
+        })
     }
 }
 
 export const userProfilesApi = {
     getAll: async (): Promise<UserProfile[]> => {
-        const { data, error } = await getSupabase()
-            .from('user_profiles')
-            .select(`
-                *,
-                staff!user_profiles_staff_id_fkey (first_name, last_name)
-            `)
-            .order('display_name')
-
-        if (error) throw error
-        return (data || []).map(p => {
-            const staffData = p.staff as { first_name: string; last_name: string } | null
+        const [rows, staffRows] = await Promise.all([
+            db.userProfiles.orderBy('display_name').toArray(),
+            db.staff.toArray()
+        ])
+        const staffMap = new Map<string, { first_name: string; last_name: string }>(
+            staffRows.map(s => [s.id as string, { first_name: s.first_name as string, last_name: s.last_name as string }])
+        )
+        return rows.map(p => {
+            const staffData = p.staff_id ? staffMap.get(p.staff_id as string) : null
             return {
-                id: p.id,
-                staffId: p.staff_id,
+                id: p.id as string,
+                staffId: p.staff_id as string | null | undefined,
                 staffName: staffData ? `${staffData.first_name} ${staffData.last_name}` : null,
-                displayName: p.display_name,
+                displayName: p.display_name as string,
                 role: p.role as 'admin' | 'manager' | 'user',
-                avatarEmoji: p.avatar_emoji || '👤',
-                lastLogin: p.last_login,
+                avatarEmoji: (p.avatar_emoji as string) || '👤',
+                lastLogin: p.last_login as string | null | undefined,
                 preferences: (p.preferences as Record<string, unknown>) || {},
-                isActive: p.is_active ?? true,
-                createdAt: p.created_at ?? ''
+                isActive: (p.is_active as boolean) ?? true,
+                createdAt: (p.created_at as string) ?? ''
             }
         })
     },
 
     getById: async (id: string): Promise<UserProfile> => {
-        const { data, error } = await getSupabase()
-            .from('user_profiles')
-            .select(`
-                *,
-                staff!user_profiles_staff_id_fkey (first_name, last_name)
-            `)
-            .eq('id', id)
-            .single()
-
-        if (error) throw error
-        const staffData = data.staff as { first_name: string; last_name: string } | null
+        const p = await db.userProfiles.get(id)
+        if (!p) throw new Error(`UserProfile not found: ${id}`)
+        let staffName: string | null = null
+        if (p.staff_id) {
+            const staffRow = await db.staff.get(p.staff_id as string)
+            if (staffRow) staffName = `${staffRow.first_name} ${staffRow.last_name}`
+        }
         return {
-            id: data.id,
-            staffId: data.staff_id,
-            staffName: staffData ? `${staffData.first_name} ${staffData.last_name}` : null,
-            displayName: data.display_name,
-            role: data.role as 'admin' | 'manager' | 'user',
-            avatarEmoji: data.avatar_emoji || '👤',
-            lastLogin: data.last_login,
-            preferences: (data.preferences as Record<string, unknown>) || {},
-            isActive: data.is_active ?? true,
-            createdAt: data.created_at ?? ''
+            id: p.id as string,
+            staffId: p.staff_id as string | null | undefined,
+            staffName,
+            displayName: p.display_name as string,
+            role: p.role as 'admin' | 'manager' | 'user',
+            avatarEmoji: (p.avatar_emoji as string) || '👤',
+            lastLogin: p.last_login as string | null | undefined,
+            preferences: (p.preferences as Record<string, unknown>) || {},
+            isActive: (p.is_active as boolean) ?? true,
+            createdAt: (p.created_at as string) ?? ''
         }
     },
 
     create: async (profileData: Omit<UserProfile, 'id' | 'staffName' | 'createdAt'>): Promise<UserProfile> => {
-        const { data, error } = await getSupabase()
-            .from('user_profiles')
-            .insert([{
-                staff_id: profileData.staffId || null,
-                display_name: profileData.displayName,
-                role: profileData.role,
-                avatar_emoji: profileData.avatarEmoji,
-                preferences: profileData.preferences as Json || {}
-            }])
-            .select()
-            .single()
-
-        if (error) throw error
+        const id = generateId()
+        const now = nowISO()
+        const row = {
+            id,
+            staff_id: profileData.staffId || null,
+            display_name: profileData.displayName,
+            role: profileData.role,
+            avatar_emoji: profileData.avatarEmoji,
+            last_login: profileData.lastLogin || null,
+            preferences: profileData.preferences || {},
+            is_active: profileData.isActive ?? true,
+            created_at: now
+        }
+        await db.userProfiles.add(row)
         return {
-            id: data.id,
-            staffId: data.staff_id,
+            id,
+            staffId: row.staff_id,
             staffName: null,
-            displayName: data.display_name,
-            role: data.role as 'admin' | 'manager' | 'user',
-            avatarEmoji: data.avatar_emoji || '👤',
-            lastLogin: data.last_login,
-            preferences: (data.preferences as Record<string, unknown>) || {},
-            isActive: data.is_active ?? true,
-            createdAt: data.created_at ?? ''
+            displayName: row.display_name,
+            role: row.role as 'admin' | 'manager' | 'user',
+            avatarEmoji: row.avatar_emoji || '👤',
+            lastLogin: row.last_login,
+            preferences: row.preferences,
+            isActive: row.is_active,
+            createdAt: now
         }
     },
 
@@ -532,29 +409,14 @@ export const userProfilesApi = {
         if (profileData.preferences !== undefined) updateData.preferences = profileData.preferences
         if (profileData.isActive !== undefined) updateData.is_active = profileData.isActive
 
-        const { error } = await getSupabase()
-            .from('user_profiles')
-            .update(updateData)
-            .eq('id', id)
-
-        if (error) throw error
+        await db.userProfiles.update(id, updateData)
     },
 
     delete: async (id: string): Promise<void> => {
-        const { error } = await getSupabase()
-            .from('user_profiles')
-            .delete()
-            .eq('id', id)
-
-        if (error) throw error
+        await db.userProfiles.delete(id)
     },
 
     updateLastLogin: async (id: string): Promise<void> => {
-        const { error } = await getSupabase()
-            .from('user_profiles')
-            .update({ last_login: new Date().toISOString() })
-            .eq('id', id)
-
-        if (error) throw error
+        await db.userProfiles.update(id, { last_login: nowISO() })
     }
 }

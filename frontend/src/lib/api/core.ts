@@ -1,3 +1,3 @@
-import { supabase } from '../supabase'
-
-export const getSupabase = () => supabase
+import { db } from '../offline/db'
+export { db }
+export { generateId, nowISO } from '../offline/db'

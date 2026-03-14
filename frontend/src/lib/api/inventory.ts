@@ -1,5 +1,10 @@
-import { getSupabase } from './core'
+import { db, generateId, nowISO } from './core'
 import { activityLogApi } from './activityLog'
+
+function safeJsonParse<T>(value: unknown, fallback: T): T {
+    if (!value || typeof value !== 'string') return fallback
+    try { return JSON.parse(value) } catch { return fallback }
+}
 
 // =============================================
 // Supplier Categories
@@ -51,84 +56,65 @@ export interface Delivery {
     createdAt: string
 }
 
+function mapSupplier(s: any): Supplier {
+    return {
+        id: s.id,
+        name: s.name,
+        category: s.category || 'autre',
+        phone: s.phone || '',
+        email: s.email || '',
+        contact: s.contact || '',
+        notes: s.notes || '',
+        logoUrl: s.logo_url || '',
+        orderDays: safeJsonParse(s.order_days, []),
+        deliveryDays: safeJsonParse(s.delivery_days, [])
+    }
+}
+
 export const inventoryApi = {
     // =========================================
     // Suppliers
     // =========================================
     suppliers: {
         getAll: async (): Promise<Supplier[]> => {
-            const { data, error } = await getSupabase()
-                .from('suppliers')
-                .select('*')
-                .order('name')
-
-            if (error) throw error
-
-            return (data || []).map(s => ({
-                id: s.id,
-                name: s.name,
-                category: 'autre',
-                phone: s.phone || '',
-                email: s.email || '',
-                contact: s.contact || '',
-                notes: s.notes || '',
-                logoUrl: '',
-                orderDays: [],
-                deliveryDays: []
-            }))
+            const rows = await db.suppliers.orderBy('name').toArray()
+            return rows.map(mapSupplier)
         },
 
         create: async (supplierData: Omit<Supplier, 'id'>): Promise<Supplier> => {
-            const { data, error } = await getSupabase()
-                .from('suppliers')
-                .insert([{
-                    name: supplierData.name,
-                    phone: supplierData.phone,
-                    email: supplierData.email,
-                    contact: supplierData.contact,
-                    notes: supplierData.notes
-                }])
-                .select()
-                .single()
-
-            if (error) throw error
-
-            return {
-                id: data.id,
-                name: data.name,
-                category: 'autre',
-                phone: data.phone || '',
-                email: data.email || '',
-                contact: data.contact || '',
-                notes: data.notes || '',
-                logoUrl: '',
-                orderDays: [],
-                deliveryDays: []
+            const id = generateId()
+            const record = {
+                id,
+                name: supplierData.name,
+                category: supplierData.category || 'autre',
+                phone: supplierData.phone,
+                email: supplierData.email,
+                contact: supplierData.contact,
+                notes: supplierData.notes,
+                logo_url: supplierData.logoUrl || null,
+                order_days: JSON.stringify(supplierData.orderDays || []),
+                delivery_days: JSON.stringify(supplierData.deliveryDays || [])
             }
+            await db.suppliers.add(record)
+            return mapSupplier(record)
         },
 
         update: async (id: string, supplierData: Partial<Supplier>): Promise<void> => {
-            const { error } = await getSupabase()
-                .from('suppliers')
-                .update({
-                    name: supplierData.name,
-                    phone: supplierData.phone,
-                    email: supplierData.email,
-                    contact: supplierData.contact,
-                    notes: supplierData.notes
-                })
-                .eq('id', id)
-
-            if (error) throw error
+            const updateData: Record<string, unknown> = {}
+            if (supplierData.name !== undefined) updateData.name = supplierData.name
+            if (supplierData.category !== undefined) updateData.category = supplierData.category
+            if (supplierData.phone !== undefined) updateData.phone = supplierData.phone
+            if (supplierData.email !== undefined) updateData.email = supplierData.email
+            if (supplierData.contact !== undefined) updateData.contact = supplierData.contact
+            if (supplierData.notes !== undefined) updateData.notes = supplierData.notes
+            if (supplierData.logoUrl !== undefined) updateData.logo_url = supplierData.logoUrl
+            if (supplierData.orderDays !== undefined) updateData.order_days = JSON.stringify(supplierData.orderDays)
+            if (supplierData.deliveryDays !== undefined) updateData.delivery_days = JSON.stringify(supplierData.deliveryDays)
+            await db.suppliers.update(id, updateData)
         },
 
         delete: async (id: string): Promise<void> => {
-            const { error } = await getSupabase()
-                .from('suppliers')
-                .delete()
-                .eq('id', id)
-
-            if (error) throw error
+            await db.suppliers.delete(id)
         },
 
         getTodayOrderReminders: async (): Promise<Supplier[]> => {
@@ -143,73 +129,76 @@ export const inventoryApi = {
     // =========================================
     deliveries: {
         getAll: async (): Promise<Delivery[]> => {
-            // Get deliveries with product and supplier info
-            const { data, error } = await getSupabase()
-                .from('deliveries')
-                .select(`
-                    *,
-                    products (name),
-                    suppliers (name)
-                `)
-                .order('delivery_date', { ascending: false })
+            const rows = await db.deliveries.orderBy('delivery_date').reverse().toArray()
 
-            if (error) throw error
+            const productIds = [...new Set(rows.map(d => d.product_id).filter(Boolean))]
+            const supplierIds = [...new Set(rows.map(d => d.supplier_id).filter(Boolean))]
 
-            return (data || []).map(d => ({
+            const [productRows, supplierRows] = await Promise.all([
+                db.products.bulkGet(productIds),
+                db.suppliers.bulkGet(supplierIds)
+            ])
+
+            const productMap = new Map<string, string>()
+            productRows.forEach(p => { if (p) productMap.set(p.id, p.name) })
+
+            const supplierMap = new Map<string, string>()
+            supplierRows.forEach(s => { if (s) supplierMap.set(s.id, s.name) })
+
+            return rows.map(d => ({
                 id: d.id,
                 date: d.delivery_date,
-                supplierId: d.supplier_id,
-                supplierName: (d.suppliers as { name: string } | null)?.name || '',
-                photoUrl: null,
+                supplierId: d.supplier_id ?? null,
+                supplierName: d.supplier_id ? (supplierMap.get(d.supplier_id) || '') : '',
+                photoUrl: d.photo_url ?? null,
                 total: Number(d.total_price) || 0,
                 items: [{
                     id: d.id,
                     productId: d.product_id,
-                    productName: (d.products as { name: string } | null)?.name || '',
+                    productName: productMap.get(d.product_id) || '',
                     quantity: Number(d.quantity) || 0,
                     price: Number(d.unit_price) || 0
                 }],
-                createdAt: d.created_at
+                createdAt: d.created_at || nowISO()
             }))
         },
 
         create: async (deliveryData: { date: string; supplierName: string; supplierId?: string; photoUrl?: string; items: DeliveryItem[] }): Promise<Delivery> => {
-            // The table structure has one delivery per product, so create multiple entries
             const results: Delivery[] = []
 
-            for (const item of deliveryData.items) {
-                const { data: delivery, error: deliveryError } = await getSupabase()
-                    .from('deliveries')
-                    .insert([{
+            await db.transaction('rw', [db.deliveries], async () => {
+                for (const item of deliveryData.items) {
+                    const id = generateId()
+                    const record = {
+                        id,
                         product_id: item.productId,
                         supplier_id: deliveryData.supplierId || null,
                         quantity: item.quantity,
                         unit_price: item.price,
                         total_price: item.quantity * item.price,
-                        delivery_date: deliveryData.date
-                    }])
-                    .select()
-                    .single()
-
-                if (deliveryError) throw deliveryError
-
-                results.push({
-                    id: delivery.id,
-                    date: delivery.delivery_date,
-                    supplierId: delivery.supplier_id,
-                    supplierName: deliveryData.supplierName,
-                    photoUrl: null,
-                    total: Number(delivery.total_price) || 0,
-                    items: [{
-                        id: delivery.id,
-                        productId: item.productId,
-                        productName: item.productName,
-                        quantity: Number(delivery.quantity) || 0,
-                        price: Number(delivery.unit_price) || 0
-                    }],
-                    createdAt: delivery.created_at
-                })
-            }
+                        delivery_date: deliveryData.date,
+                        photo_url: deliveryData.photoUrl || null,
+                        created_at: nowISO()
+                    }
+                    await db.deliveries.add(record)
+                    results.push({
+                        id,
+                        date: deliveryData.date,
+                        supplierId: deliveryData.supplierId || null,
+                        supplierName: deliveryData.supplierName,
+                        photoUrl: deliveryData.photoUrl || null,
+                        total: item.quantity * item.price,
+                        items: [{
+                            id,
+                            productId: item.productId,
+                            productName: item.productName,
+                            quantity: item.quantity,
+                            price: item.price
+                        }],
+                        createdAt: record.created_at
+                    })
+                }
+            })
 
             const result = results[0] || {
                 id: '',
@@ -219,10 +208,9 @@ export const inventoryApi = {
                 photoUrl: null,
                 total: 0,
                 items: [],
-                createdAt: new Date().toISOString()
+                createdAt: nowISO()
             }
 
-            // Log activity
             activityLogApi.log({
                 action: 'delivery_created',
                 entityType: 'delivery',
@@ -238,14 +226,8 @@ export const inventoryApi = {
         },
 
         delete: async (id: string): Promise<void> => {
-            const { error } = await getSupabase()
-                .from('deliveries')
-                .delete()
-                .eq('id', id)
+            await db.deliveries.delete(id)
 
-            if (error) throw error
-
-            // Log activity
             activityLogApi.log({
                 action: 'delivery_deleted',
                 entityType: 'delivery',

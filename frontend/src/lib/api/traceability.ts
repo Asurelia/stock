@@ -1,10 +1,5 @@
-import { getSupabase } from './core'
-import type { TraceabilityPhoto } from '../database.types'
+import { db, generateId, nowISO } from './core'
 import { activityLogApi } from './activityLog'
-
-// Helper for tables not in generated types (recurring_output_configs, daily_recurring_outputs)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getUntypedSupabase = () => getSupabase() as any
 
 export const OUTPUT_REASONS = [
     'Service midi',
@@ -50,294 +45,6 @@ export interface DailyRecurringOutput {
     outputId?: string | null
 }
 
-// Note: Ces tables doivent être créées via la migration 20260122_recurring_outputs.sql
-// Les types sont définis manuellement car les tables ne sont pas encore dans database.types.ts
-
-type RecurringConfigRow = {
-    id: string
-    category: string
-    product_id: string
-    quantity: number
-    is_active: boolean
-    created_at: string
-    products?: { name: string } | null
-}
-
-type DailyRecurringRow = {
-    id: string
-    date: string
-    category: string
-    product_id: string
-    quantity: number
-    is_executed: boolean
-    executed_at: string | null
-    output_id: string | null
-    products?: { name: string } | null
-}
-
-export const recurringOutputsApi = {
-    // =========================================
-    // Recurring Output Configs (global settings)
-    // =========================================
-    configs: {
-        getAll: async (): Promise<RecurringOutputConfig[]> => {
-            const { data, error } = await getUntypedSupabase()
-                .from('recurring_output_configs')
-                .select(`*, products (name)`)
-                .order('category')
-                .order('created_at')
-
-            if (error) throw error
-            return ((data || []) as unknown as RecurringConfigRow[]).map(c => ({
-                id: c.id,
-                category: c.category as DailyOutputCategory,
-                productId: c.product_id,
-                productName: c.products?.name,
-                quantity: Number(c.quantity),
-                isActive: c.is_active ?? true,
-                createdAt: c.created_at
-            }))
-        },
-
-        getByCategory: async (category: DailyOutputCategory): Promise<RecurringOutputConfig[]> => {
-            const { data, error } = await getUntypedSupabase()
-                .from('recurring_output_configs')
-                .select(`*, products (name)`)
-                .eq('category', category)
-                .eq('is_active', true)
-                .order('created_at')
-
-            if (error) throw error
-            return ((data || []) as unknown as RecurringConfigRow[]).map(c => ({
-                id: c.id,
-                category: c.category as DailyOutputCategory,
-                productId: c.product_id,
-                productName: c.products?.name,
-                quantity: Number(c.quantity),
-                isActive: c.is_active ?? true,
-                createdAt: c.created_at
-            }))
-        },
-
-        upsert: async (config: { category: DailyOutputCategory; productId: string; quantity: number }): Promise<RecurringOutputConfig> => {
-            const { data, error } = await getUntypedSupabase()
-                .from('recurring_output_configs')
-                .upsert({
-                    category: config.category,
-                    product_id: config.productId,
-                    quantity: config.quantity,
-                    is_active: true
-                } , { onConflict: 'category,product_id' })
-                .select()
-                .single()
-
-            if (error) throw error
-            const row = data as unknown as RecurringConfigRow
-            return {
-                id: row.id,
-                category: row.category as DailyOutputCategory,
-                productId: row.product_id,
-                quantity: Number(row.quantity),
-                isActive: row.is_active ?? true,
-                createdAt: row.created_at
-            }
-        },
-
-        delete: async (id: string): Promise<void> => {
-            const { error } = await getUntypedSupabase()
-                .from('recurring_output_configs')
-                .delete()
-                .eq('id', id)
-
-            if (error) throw error
-        },
-
-        updateQuantity: async (id: string, quantity: number): Promise<void> => {
-            const { error } = await getUntypedSupabase()
-                .from('recurring_output_configs')
-                .update({ quantity })
-                .eq('id', id)
-
-            if (error) throw error
-        }
-    },
-
-    // =========================================
-    // Daily Recurring Outputs (day-by-day)
-    // =========================================
-    daily: {
-        getForDate: async (date: string): Promise<DailyRecurringOutput[]> => {
-            const { data, error } = await getUntypedSupabase()
-                .from('daily_recurring_outputs')
-                .select(`*, products (name)`)
-                .eq('date', date)
-                .order('category')
-
-            if (error) throw error
-            return ((data || []) as unknown as DailyRecurringRow[]).map(d => ({
-                id: d.id,
-                date: d.date,
-                category: d.category as DailyOutputCategory,
-                productId: d.product_id,
-                productName: d.products?.name,
-                quantity: Number(d.quantity),
-                isExecuted: d.is_executed ?? false,
-                executedAt: d.executed_at,
-                outputId: d.output_id
-            }))
-        },
-
-        // Initialize today's outputs from global config (if not already done)
-        initializeForDate: async (date: string): Promise<DailyRecurringOutput[]> => {
-            const supabase = getUntypedSupabase()
-            
-            // Check if already initialized
-            const { data: existing } = await supabase
-                .from('daily_recurring_outputs')
-                .select('id')
-                .eq('date', date)
-                .limit(1)
-
-            if (existing && existing.length > 0) {
-                // Already initialized, return current data
-                return recurringOutputsApi.daily.getForDate(date)
-            }
-
-            // Get active configs
-            const { data: configs, error: configError } = await supabase
-                .from('recurring_output_configs')
-                .select('*')
-                .eq('is_active', true)
-
-            if (configError) throw configError
-
-            if (!configs || configs.length === 0) {
-                return []
-            }
-
-            // Create daily entries
-            const dailyEntries = (configs as unknown as RecurringConfigRow[]).map(c => ({
-                date,
-                category: c.category,
-                product_id: c.product_id,
-                quantity: c.quantity,
-                is_executed: false
-            }))
-
-            const { error: insertError } = await supabase
-                .from('daily_recurring_outputs')
-                .insert(dailyEntries)
-
-            if (insertError) throw insertError
-
-            return recurringOutputsApi.daily.getForDate(date)
-        },
-
-        // Sync today's outputs with global config (add new configs, keep existing)
-        syncForDate: async (date: string): Promise<DailyRecurringOutput[]> => {
-            const supabase = getUntypedSupabase()
-            
-            // Get existing daily outputs
-            const existingOutputs = await recurringOutputsApi.daily.getForDate(date)
-            
-            // Get active configs
-            const { data: configs, error: configError } = await supabase
-                .from('recurring_output_configs')
-                .select('*')
-                .eq('is_active', true)
-
-            if (configError) throw configError
-
-            const configsList = (configs || []) as unknown as RecurringConfigRow[]
-            
-            // Find configs that don't have a daily output yet
-            const newEntries = configsList.filter(config => 
-                !existingOutputs.some(o => 
-                    o.category === config.category && o.productId === config.product_id
-                )
-            ).map(c => ({
-                date,
-                category: c.category,
-                product_id: c.product_id,
-                quantity: c.quantity,
-                is_executed: false
-            }))
-
-            if (newEntries.length > 0) {
-                const { error: insertError } = await supabase
-                    .from('daily_recurring_outputs')
-                    .insert(newEntries)
-
-                if (insertError) throw insertError
-            }
-
-            return recurringOutputsApi.daily.getForDate(date)
-        },
-
-        updateQuantity: async (id: string, quantity: number): Promise<void> => {
-            const { error } = await getUntypedSupabase()
-                .from('daily_recurring_outputs')
-                .update({ quantity })
-                .eq('id', id)
-
-            if (error) throw error
-        },
-
-        // Execute a single daily output (create actual output and deduct stock)
-        execute: async (dailyOutput: DailyRecurringOutput): Promise<void> => {
-            const supabase = getUntypedSupabase()
-            const category = DAILY_OUTPUT_CATEGORIES.find(c => c.id === dailyOutput.category)
-            if (!category) throw new Error('Invalid category')
-
-            // Create the actual output
-            const output = await traceabilityApi.outputs.create({
-                productId: dailyOutput.productId,
-                quantity: dailyOutput.quantity,
-                reason: category.reason,
-                date: new Date().toISOString()
-            })
-
-            // Mark as executed
-            const { error } = await supabase
-                .from('daily_recurring_outputs')
-                .update({
-                    is_executed: true,
-                    executed_at: new Date().toISOString(),
-                    output_id: output.id
-                })
-                .eq('id', dailyOutput.id)
-
-            if (error) throw error
-        },
-
-        // Execute all pending outputs for a category
-        executeCategory: async (date: string, category: DailyOutputCategory): Promise<number> => {
-            const outputs = await recurringOutputsApi.daily.getForDate(date)
-            const pending = outputs.filter(o => o.category === category && !o.isExecuted)
-            
-            let executed = 0
-            for (const output of pending) {
-                await recurringOutputsApi.daily.execute(output)
-                executed++
-            }
-            return executed
-        },
-
-        // Execute all pending outputs for the day
-        executeAll: async (date: string): Promise<number> => {
-            const outputs = await recurringOutputsApi.daily.getForDate(date)
-            const pending = outputs.filter(o => !o.isExecuted)
-            
-            let executed = 0
-            for (const output of pending) {
-                await recurringOutputsApi.daily.execute(output)
-                executed++
-            }
-            return executed
-        }
-    }
-}
-
 export interface Output {
     id: string
     productId: string
@@ -357,21 +64,15 @@ export const traceabilityApi = {
     // =========================================
     outputs: {
         getAll: async (): Promise<Output[]> => {
-            const { data, error } = await getSupabase()
-                .from('outputs')
-                .select(`
-                    *,
-                    products (name)
-                `)
-                .order('output_date', { ascending: false })
-                .order('created_at', { ascending: false })
+            const outputs = await db.outputs.orderBy('output_date').reverse().toArray()
+            const productIds = [...new Set(outputs.map((o: any) => o.product_id).filter(Boolean))]
+            const products = await db.products.where('id').anyOf(productIds).toArray()
+            const productMap = new Map(products.map((p: any) => [p.id, p]))
 
-            if (error) throw error
-
-            return (data || []).map(o => ({
+            return outputs.map((o: any) => ({
                 id: o.id,
                 productId: o.product_id || '',
-                productName: (o.products as { name: string } | null)?.name || 'Produit supprimé',
+                productName: productMap.get(o.product_id)?.name || 'Produit supprimé',
                 quantity: Number(o.quantity) || 0,
                 reason: o.reason || 'Service midi',
                 date: o.output_date,
@@ -380,27 +81,25 @@ export const traceabilityApi = {
         },
 
         getByDateRange: async (from: string, to: string): Promise<Output[]> => {
-            // Handle both ISO strings and date-only strings
             const fromDate = from.includes('T') ? from : `${from}T00:00:00.000Z`
             const toDate = to.includes('T') ? to : `${to}T23:59:59.999Z`
 
-            const { data, error } = await getSupabase()
-                .from('outputs')
-                .select(`
-                    *,
-                    products (name)
-                `)
-                .gte('output_date', fromDate)
-                .lte('output_date', toDate)
-                .order('output_date', { ascending: false })
-                .order('created_at', { ascending: false })
+            const outputs = await db.outputs
+                .where('output_date')
+                .between(fromDate, toDate, true, true)
+                .reverse()
+                .toArray()
 
-            if (error) throw error
+            const productIds = [...new Set(outputs.map((o: any) => o.product_id).filter(Boolean))]
+            const products = productIds.length > 0
+                ? await db.products.where('id').anyOf(productIds).toArray()
+                : []
+            const productMap = new Map(products.map((p: any) => [p.id, p]))
 
-            return (data || []).map(o => ({
+            return outputs.map((o: any) => ({
                 id: o.id,
                 productId: o.product_id || '',
-                productName: (o.products as { name: string } | null)?.name || 'Produit supprimé',
+                productName: productMap.get(o.product_id)?.name || 'Produit supprimé',
                 quantity: Number(o.quantity) || 0,
                 reason: o.reason || 'Service midi',
                 date: o.output_date,
@@ -414,120 +113,82 @@ export const traceabilityApi = {
         },
 
         create: async (outputData: { productId: string; quantity: number; reason: string; date?: string }): Promise<Output> => {
-            const supabaseClient = getSupabase()
+            let result: Output
 
-            // 1. Get current product stock
-            const { data: product, error: productError } = await supabaseClient
-                .from('products')
-                .select('quantity')
-                .eq('id', outputData.productId)
-                .single()
+            await db.transaction('rw', [db.outputs, db.products], async () => {
+                const product = await db.products.get(outputData.productId)
+                if (!product) throw new Error('Produit introuvable')
 
-            if (productError) throw productError
+                const currentStock = Number(product.quantity) || 0
+                const newStock = currentStock - outputData.quantity
 
-            const currentStock = Number(product.quantity) || 0
-            const newStock = currentStock - outputData.quantity
+                if (newStock < 0) {
+                    throw new Error('Stock insuffisant')
+                }
 
-            if (newStock < 0) {
-                throw new Error('Stock insuffisant')
-            }
+                const id = generateId()
+                const now = nowISO()
+                const output_date = outputData.date || now
 
-            // 2. Create the output record
-            const { data, error } = await supabaseClient
-                .from('outputs')
-                .insert([{
+                await db.outputs.add({
+                    id,
                     product_id: outputData.productId,
                     quantity: outputData.quantity,
                     reason: outputData.reason,
-                    output_date: outputData.date || new Date().toISOString()
-                }])
-                .select(`
-                    *,
-                    products (name)
-                `)
-                .single()
+                    output_date,
+                    created_at: now
+                })
 
-            if (error) throw error
+                await db.products.update(outputData.productId, { quantity: newStock })
 
-            // 3. Update product stock
-            const { error: updateError } = await supabaseClient
-                .from('products')
-                .update({ quantity: newStock })
-                .eq('id', outputData.productId)
-
-            if (updateError) throw updateError
-
-            const result = {
-                id: data.id,
-                productId: data.product_id || '',
-                productName: (data.products as { name: string } | null)?.name || '',
-                quantity: Number(data.quantity) || 0,
-                reason: data.reason || 'Service midi',
-                date: data.output_date,
-                createdAt: data.created_at
-            }
-
-            // Log activity
-            activityLogApi.log({
-                action: 'output_created',
-                entityType: 'output',
-                entityId: result.id,
-                details: {
-                    productName: result.productName,
-                    quantity: result.quantity,
-                    reason: result.reason
+                result = {
+                    id,
+                    productId: outputData.productId,
+                    productName: product.name || '',
+                    quantity: outputData.quantity,
+                    reason: outputData.reason,
+                    date: output_date,
+                    createdAt: now
                 }
             })
 
-            return result
+            activityLogApi.log({
+                action: 'output_created',
+                entityType: 'output',
+                entityId: result!.id,
+                details: {
+                    productName: result!.productName,
+                    quantity: result!.quantity,
+                    reason: result!.reason
+                }
+            })
+
+            return result!
         },
 
         delete: async (id: string): Promise<void> => {
-            const supabaseClient = getSupabase()
+            let quantity: number
 
-            // 1. Get the output to restore stock
-            const { data: output, error: fetchError } = await supabaseClient
-                .from('outputs')
-                .select('product_id, quantity')
-                .eq('id', id)
-                .single()
+            await db.transaction('rw', [db.outputs, db.products], async () => {
+                const output = await db.outputs.get(id)
+                if (!output) throw new Error('Sortie introuvable')
 
-            if (fetchError) throw fetchError
+                const product = await db.products.get(output.product_id)
+                if (!product) throw new Error('Produit introuvable')
 
-            // 2. Get current product stock
-            const { data: product, error: productError } = await supabaseClient
-                .from('products')
-                .select('quantity')
-                .eq('id', output.product_id)
-                .single()
+                quantity = Number(output.quantity)
+                const restoredStock = Number(product.quantity) + quantity
 
-            if (productError) throw productError
+                await db.products.update(output.product_id, { quantity: restoredStock })
+                await db.outputs.delete(id)
+            })
 
-            // 3. Restore the stock
-            const restoredStock = Number(product.quantity) + Number(output.quantity)
-
-            const { error: updateError } = await supabaseClient
-                .from('products')
-                .update({ quantity: restoredStock })
-                .eq('id', output.product_id)
-
-            if (updateError) throw updateError
-
-            // 4. Delete the output record
-            const { error } = await supabaseClient
-                .from('outputs')
-                .delete()
-                .eq('id', id)
-
-            if (error) throw error
-
-            // Log activity
             activityLogApi.log({
                 action: 'output_deleted',
                 entityType: 'output',
                 entityId: id,
                 details: {
-                    quantity: Number(output.quantity)
+                    quantity: quantity!
                 }
             })
         }
@@ -538,94 +199,341 @@ export const traceabilityApi = {
     // =========================================
     traceabilityPhotos: {
         upload: async (file: File, outputId: string, notes?: string) => {
-            const supabaseClient = getSupabase()
-            const timestamp = Date.now()
-            const extension = file.name.split('.').pop() || 'jpg'
-            const storagePath = `${outputId}/${timestamp}.${extension}`
+            const id = generateId()
+            const url = URL.createObjectURL(file)
+            const captured_at = nowISO()
+            const created_at = nowISO()
+            const storage_path = `local/${id}/${file.name}`
 
-            // Upload to storage
-            const { error: uploadError } = await supabaseClient.storage
-                .from('traceability-photos')
-                .upload(storagePath, file)
+            await db.traceabilityPhotos.add({
+                id,
+                output_id: outputId,
+                storage_path,
+                url,
+                blob: file,
+                captured_at,
+                notes: notes || null,
+                created_at
+            })
 
-            if (uploadError) throw uploadError
-
-            // Get public URL
-            const { data: urlData } = supabaseClient.storage
-                .from('traceability-photos')
-                .getPublicUrl(storagePath)
-
-            // Create record
-            const { data, error } = await supabaseClient
-                .from('traceability_photos')
-                .insert([{
-                    output_id: outputId,
-                    storage_path: storagePath,
-                    url: urlData.publicUrl,
-                    notes: notes || null
-                }])
-                .select()
-                .single()
-
-            if (error) throw error
-            return data
+            return { id, output_id: outputId, storage_path, url, captured_at, notes: notes || null, created_at }
         },
 
         getByOutput: async (outputId: string) => {
-            const { data, error } = await getSupabase()
-                .from('traceability_photos')
-                .select('*')
-                .eq('output_id', outputId)
-                .order('captured_at', { ascending: false })
+            const photos = await db.traceabilityPhotos
+                .where('output_id')
+                .equals(outputId)
+                .reverse()
+                .toArray()
 
-            if (error) throw error
-            return data || []
+            return photos.map((photo: any) => {
+                if (photo.blob) {
+                    return { ...photo, url: URL.createObjectURL(photo.blob) }
+                }
+                return photo
+            })
         },
 
-        getByDateRange: async (from: string, to: string): Promise<(TraceabilityPhoto & { outputs: { id: string, product_id: string, quantity: number, products: { name: string, category: string } | null } | null })[]> => {
-            const { data, error } = await getSupabase()
-                .from('traceability_photos')
-                .select(`
-                    *,
-                    outputs (
-                        id,
-                        product_id,
-                        quantity,
-                        products (name, category)
-                    )
-                `)
-                .gte('captured_at', from)
-                .lte('captured_at', to)
-                .order('captured_at', { ascending: false })
+        getByDateRange: async (from: string, to: string): Promise<any[]> => {
+            const photos = await db.traceabilityPhotos
+                .where('captured_at')
+                .between(from, to, true, true)
+                .reverse()
+                .toArray()
 
-            if (error) throw error
-            return data as any
+            const outputIds = [...new Set(photos.map((p: any) => p.output_id).filter(Boolean))]
+            const outputs = outputIds.length > 0
+                ? await db.outputs.where('id').anyOf(outputIds).toArray()
+                : []
+            const outputMap = new Map(outputs.map((o: any) => [o.id, o]))
+
+            const productIds = [...new Set(outputs.map((o: any) => o.product_id).filter(Boolean))]
+            const products = productIds.length > 0
+                ? await db.products.where('id').anyOf(productIds).toArray()
+                : []
+            const productMap = new Map(products.map((p: any) => [p.id, p]))
+
+            return photos.map((photo: any) => {
+                const output = outputMap.get(photo.output_id) || null
+                const product = output ? productMap.get(output.product_id) || null : null
+                const url = photo.blob ? URL.createObjectURL(photo.blob) : photo.url
+
+                return {
+                    ...photo,
+                    url,
+                    outputs: output
+                        ? {
+                            id: output.id,
+                            product_id: output.product_id,
+                            quantity: Number(output.quantity),
+                            products: product
+                                ? { name: product.name, category: product.category }
+                                : null
+                        }
+                        : null
+                }
+            })
         },
 
         delete: async (id: string) => {
-            // Get the photo record first
-            const { data: photo, error: fetchError } = await getSupabase()
-                .from('traceability_photos')
-                .select('storage_path')
-                .eq('id', id)
-                .single()
+            await db.traceabilityPhotos.delete(id)
+        }
+    }
+}
 
-            if (fetchError) throw fetchError
+export const recurringOutputsApi = {
+    // =========================================
+    // Recurring Output Configs (global settings)
+    // =========================================
+    configs: {
+        getAll: async (): Promise<RecurringOutputConfig[]> => {
+            const configs = await db.recurringOutputConfigs.toArray()
+            configs.sort((a: any, b: any) => {
+                if (a.category < b.category) return -1
+                if (a.category > b.category) return 1
+                return a.created_at < b.created_at ? -1 : 1
+            })
 
-            // Delete from storage
-            if (photo?.storage_path) {
-                await getSupabase().storage
-                    .from('traceability-photos')
-                    .remove([photo.storage_path])
+            const productIds = [...new Set(configs.map((c: any) => c.product_id).filter(Boolean))]
+            const products = productIds.length > 0
+                ? await db.products.where('id').anyOf(productIds).toArray()
+                : []
+            const productMap = new Map(products.map((p: any) => [p.id, p]))
+
+            return configs.map((c: any) => ({
+                id: c.id,
+                category: c.category as DailyOutputCategory,
+                productId: c.product_id,
+                productName: productMap.get(c.product_id)?.name,
+                quantity: Number(c.quantity),
+                isActive: c.is_active ?? true,
+                createdAt: c.created_at
+            }))
+        },
+
+        getByCategory: async (category: DailyOutputCategory): Promise<RecurringOutputConfig[]> => {
+            const configs = await db.recurringOutputConfigs
+                .where('category')
+                .equals(category)
+                .and((c: any) => c.is_active)
+                .toArray()
+
+            const productIds = [...new Set(configs.map((c: any) => c.product_id).filter(Boolean))]
+            const products = productIds.length > 0
+                ? await db.products.where('id').anyOf(productIds).toArray()
+                : []
+            const productMap = new Map(products.map((p: any) => [p.id, p]))
+
+            return configs.map((c: any) => ({
+                id: c.id,
+                category: c.category as DailyOutputCategory,
+                productId: c.product_id,
+                productName: productMap.get(c.product_id)?.name,
+                quantity: Number(c.quantity),
+                isActive: c.is_active ?? true,
+                createdAt: c.created_at
+            }))
+        },
+
+        upsert: async (config: { category: DailyOutputCategory; productId: string; quantity: number }): Promise<RecurringOutputConfig> => {
+            return await db.transaction('rw', [db.recurringOutputConfigs], async () => {
+                const existing = await db.recurringOutputConfigs
+                    .where('category')
+                    .equals(config.category)
+                    .and((c: any) => c.product_id === config.productId)
+                    .first()
+
+                if (existing) {
+                    await db.recurringOutputConfigs.update(existing.id, {
+                        quantity: config.quantity,
+                        is_active: true
+                    })
+                    const updated = await db.recurringOutputConfigs.get(existing.id)
+                    return {
+                        id: updated.id,
+                        category: updated.category as DailyOutputCategory,
+                        productId: updated.product_id,
+                        quantity: Number(updated.quantity),
+                        isActive: updated.is_active ?? true,
+                        createdAt: updated.created_at
+                    }
+                }
+
+                const id = generateId()
+                const now = nowISO()
+                const row = {
+                    id,
+                    category: config.category,
+                    product_id: config.productId,
+                    quantity: config.quantity,
+                    is_active: true,
+                    created_at: now
+                }
+                await db.recurringOutputConfigs.add(row)
+
+                return {
+                    id,
+                    category: config.category as DailyOutputCategory,
+                    productId: config.productId,
+                    quantity: config.quantity,
+                    isActive: true,
+                    createdAt: now
+                }
+            })
+        },
+
+        delete: async (id: string): Promise<void> => {
+            await db.recurringOutputConfigs.delete(id)
+        },
+
+        updateQuantity: async (id: string, quantity: number): Promise<void> => {
+            await db.recurringOutputConfigs.update(id, { quantity })
+        }
+    },
+
+    // =========================================
+    // Daily Recurring Outputs (day-by-day)
+    // =========================================
+    daily: {
+        getForDate: async (date: string): Promise<DailyRecurringOutput[]> => {
+            const rows = await db.dailyRecurringOutputs
+                .where('date')
+                .equals(date)
+                .toArray()
+
+            rows.sort((a: any, b: any) => {
+                if (a.category < b.category) return -1
+                if (a.category > b.category) return 1
+                return 0
+            })
+
+            const productIds = [...new Set(rows.map((r: any) => r.product_id).filter(Boolean))]
+            const products = productIds.length > 0
+                ? await db.products.where('id').anyOf(productIds).toArray()
+                : []
+            const productMap = new Map(products.map((p: any) => [p.id, p]))
+
+            return rows.map((d: any) => ({
+                id: d.id,
+                date: d.date,
+                category: d.category as DailyOutputCategory,
+                productId: d.product_id,
+                productName: productMap.get(d.product_id)?.name,
+                quantity: Number(d.quantity),
+                isExecuted: d.is_executed ?? false,
+                executedAt: d.executed_at ?? null,
+                outputId: d.output_id ?? null
+            }))
+        },
+
+        initializeForDate: async (date: string): Promise<DailyRecurringOutput[]> => {
+            const existing = await db.dailyRecurringOutputs
+                .where('date')
+                .equals(date)
+                .limit(1)
+                .toArray()
+
+            if (existing.length > 0) {
+                return recurringOutputsApi.daily.getForDate(date)
             }
 
-            // Delete record
-            const { error } = await getSupabase()
-                .from('traceability_photos')
-                .delete()
-                .eq('id', id)
+            const allConfigs = await db.recurringOutputConfigs.toArray()
+            const activeConfigs = allConfigs.filter((c: any) => c.is_active === true || c.is_active === 1)
 
-            if (error) throw error
+            if (activeConfigs.length === 0) {
+                return []
+            }
+
+            const dailyEntries = activeConfigs.map((c: any) => ({
+                id: generateId(),
+                date,
+                category: c.category,
+                product_id: c.product_id,
+                quantity: c.quantity,
+                is_executed: false,
+                executed_at: null,
+                output_id: null
+            }))
+
+            await db.dailyRecurringOutputs.bulkAdd(dailyEntries)
+
+            return recurringOutputsApi.daily.getForDate(date)
+        },
+
+        syncForDate: async (date: string): Promise<DailyRecurringOutput[]> => {
+            const existingOutputs = await recurringOutputsApi.daily.getForDate(date)
+
+            const configs = await db.recurringOutputConfigs.toArray()
+            const activeConfigs = configs.filter((c: any) => c.is_active)
+
+            const newEntries = activeConfigs
+                .filter((config: any) =>
+                    !existingOutputs.some(o =>
+                        o.category === config.category && o.productId === config.product_id
+                    )
+                )
+                .map((c: any) => ({
+                    id: generateId(),
+                    date,
+                    category: c.category,
+                    product_id: c.product_id,
+                    quantity: c.quantity,
+                    is_executed: false,
+                    executed_at: null,
+                    output_id: null
+                }))
+
+            if (newEntries.length > 0) {
+                await db.dailyRecurringOutputs.bulkAdd(newEntries)
+            }
+
+            return recurringOutputsApi.daily.getForDate(date)
+        },
+
+        updateQuantity: async (id: string, quantity: number): Promise<void> => {
+            await db.dailyRecurringOutputs.update(id, { quantity })
+        },
+
+        execute: async (dailyOutput: DailyRecurringOutput): Promise<void> => {
+            const category = DAILY_OUTPUT_CATEGORIES.find(c => c.id === dailyOutput.category)
+            if (!category) throw new Error('Invalid category')
+
+            const output = await traceabilityApi.outputs.create({
+                productId: dailyOutput.productId,
+                quantity: dailyOutput.quantity,
+                reason: category.reason,
+                date: new Date().toISOString()
+            })
+
+            await db.dailyRecurringOutputs.update(dailyOutput.id, {
+                is_executed: true,
+                executed_at: nowISO(),
+                output_id: output.id
+            })
+        },
+
+        executeCategory: async (date: string, category: DailyOutputCategory): Promise<number> => {
+            const outputs = await recurringOutputsApi.daily.getForDate(date)
+            const pending = outputs.filter(o => o.category === category && !o.isExecuted)
+
+            let executed = 0
+            for (const output of pending) {
+                await recurringOutputsApi.daily.execute(output)
+                executed++
+            }
+            return executed
+        },
+
+        executeAll: async (date: string): Promise<number> => {
+            const outputs = await recurringOutputsApi.daily.getForDate(date)
+            const pending = outputs.filter(o => !o.isExecuted)
+
+            let executed = 0
+            for (const output of pending) {
+                await recurringOutputsApi.daily.execute(output)
+                executed++
+            }
+            return executed
         }
     }
 }

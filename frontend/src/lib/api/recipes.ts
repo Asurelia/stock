@@ -1,4 +1,4 @@
-import { getSupabase } from './core'
+import { db, generateId, nowISO } from './core'
 
 // =============================================
 // Dietary Tags
@@ -37,33 +37,37 @@ export interface Recipe {
 
 export const recipesApi = {
     getAll: async (): Promise<Recipe[]> => {
-        const { data, error } = await getSupabase()
-            .from('recipes')
-            .select(`
-                *,
-                recipe_ingredients (
-                    id,
-                    product_id,
-                    quantity,
-                    unit,
-                    products (name, price)
-                )
-            `)
-            .order('name')
+        const recipes = await db.recipes.orderBy('name').toArray()
+        const allIngredients = await db.recipeIngredients.toArray()
 
-        if (error) throw error
+        const productIds = [...new Set(allIngredients.map((i: any) => i.product_id).filter(Boolean))]
+        const productRows = await db.products.bulkGet(productIds)
+        const productMap = new Map<string, any>()
+        productRows.forEach((p: any) => { if (p) productMap.set(p.id, p) })
 
-        return (data || []).map(r => {
-            const ingredients = (r.recipe_ingredients || []).map((ing: { id: string; product_id: string; quantity: number; unit: string; products: { name: string; price: number } | null }) => ({
-                id: ing.id,
-                productId: ing.product_id,
-                productName: ing.products?.name || '',
-                quantity: Number(ing.quantity) || 0,
-                unit: ing.unit || ''
-            }))
+        const ingredientsByRecipe = new Map<string, any[]>()
+        for (const ing of allIngredients) {
+            const list = ingredientsByRecipe.get(ing.recipe_id) || []
+            list.push(ing)
+            ingredientsByRecipe.set(ing.recipe_id, list)
+        }
 
-            const totalCost = (r.recipe_ingredients || []).reduce((acc: number, ing: { quantity: number; products: { price: number } | null }) => {
-                return acc + (Number(ing.quantity || 0) * (Number(ing.products?.price) || 0))
+        return recipes.map(r => {
+            const ings = ingredientsByRecipe.get(r.id) || []
+            const ingredients: RecipeIngredient[] = ings.map((ing: any) => {
+                const product = productMap.get(ing.product_id)
+                return {
+                    id: ing.id,
+                    productId: ing.product_id,
+                    productName: product?.name || '',
+                    quantity: Number(ing.quantity) || 0,
+                    unit: ing.unit || ''
+                }
+            })
+
+            const totalCost = ings.reduce((acc: number, ing: any) => {
+                const product = productMap.get(ing.product_id)
+                return acc + (Number(ing.quantity || 0) * (Number(product?.price) || 0))
             }, 0)
 
             const portions = r.servings || 1
@@ -71,11 +75,11 @@ export const recipesApi = {
             return {
                 id: r.id,
                 name: r.name,
-                portions: portions,
-                photoUrl: null,
-                dietaryTags: [],
+                portions,
+                photoUrl: r.photo_url ?? null,
+                dietaryTags: r.dietary_tags ? JSON.parse(r.dietary_tags) : [],
                 instructions: r.instructions || '',
-                ingredients: ingredients,
+                ingredients,
                 cost: totalCost,
                 costPerPortion: portions > 0 ? totalCost / portions : 0
             }
@@ -83,93 +87,80 @@ export const recipesApi = {
     },
 
     create: async (recipeData: Omit<Recipe, 'id'>): Promise<Recipe> => {
-        const { data: recipe, error: recipeError } = await getSupabase()
-            .from('recipes')
-            .insert([{
+        const recipeId = generateId()
+        const now = nowISO()
+
+        await db.transaction('rw', [db.recipes, db.recipeIngredients], async () => {
+            await db.recipes.add({
+                id: recipeId,
                 name: recipeData.name,
+                category: null,
                 servings: recipeData.portions,
-                instructions: recipeData.instructions
-            }])
-            .select()
-            .single()
+                instructions: recipeData.instructions,
+                photo_url: recipeData.photoUrl ?? null,
+                dietary_tags: JSON.stringify(recipeData.dietaryTags || []),
+                created_at: now,
+                updated_at: now
+            })
 
-        if (recipeError) throw recipeError
-
-        if (recipeData.ingredients.length > 0) {
-            const { error: ingredientsError } = await getSupabase()
-                .from('recipe_ingredients')
-                .insert(recipeData.ingredients.map(ing => ({
-                    recipe_id: recipe.id,
+            for (const ing of recipeData.ingredients) {
+                await db.recipeIngredients.add({
+                    id: generateId(),
+                    recipe_id: recipeId,
                     product_id: ing.productId,
                     quantity: ing.quantity,
                     unit: ing.unit
-                })))
-
-            if (ingredientsError) throw ingredientsError
-        }
+                })
+            }
+        })
 
         return {
-            id: recipe.id,
-            name: recipe.name,
-            portions: recipe.servings || 1,
-            photoUrl: null,
-            dietaryTags: [],
-            instructions: recipe.instructions || '',
+            id: recipeId,
+            name: recipeData.name,
+            portions: recipeData.portions,
+            photoUrl: recipeData.photoUrl ?? null,
+            dietaryTags: recipeData.dietaryTags || [],
+            instructions: recipeData.instructions,
             ingredients: recipeData.ingredients
         }
     },
 
     update: async (id: string, recipeData: Partial<Recipe>): Promise<void> => {
-        const { error: recipeError } = await getSupabase()
-            .from('recipes')
-            .update({
-                name: recipeData.name,
-                servings: recipeData.portions,
-                instructions: recipeData.instructions
-            })
-            .eq('id', id)
+        await db.transaction('rw', [db.recipes, db.recipeIngredients], async () => {
+            const updateData: Record<string, unknown> = { updated_at: nowISO() }
+            if (recipeData.name !== undefined) updateData.name = recipeData.name
+            if (recipeData.portions !== undefined) updateData.servings = recipeData.portions
+            if (recipeData.instructions !== undefined) updateData.instructions = recipeData.instructions
+            if (recipeData.photoUrl !== undefined) updateData.photo_url = recipeData.photoUrl
+            if (recipeData.dietaryTags !== undefined) updateData.dietary_tags = JSON.stringify(recipeData.dietaryTags)
+            await db.recipes.update(id, updateData)
 
-        if (recipeError) throw recipeError
-
-        if (recipeData.ingredients) {
-            await getSupabase()
-                .from('recipe_ingredients')
-                .delete()
-                .eq('recipe_id', id)
-
-            if (recipeData.ingredients.length > 0) {
-                const { error: ingredientsError } = await getSupabase()
-                    .from('recipe_ingredients')
-                    .insert(recipeData.ingredients.map(ing => ({
+            if (recipeData.ingredients !== undefined) {
+                await db.recipeIngredients.where('recipe_id').equals(id).delete()
+                for (const ing of recipeData.ingredients) {
+                    await db.recipeIngredients.add({
+                        id: generateId(),
                         recipe_id: id,
                         product_id: ing.productId,
                         quantity: ing.quantity,
                         unit: ing.unit
-                    })))
-
-                if (ingredientsError) throw ingredientsError
+                    })
+                }
             }
-        }
+        })
     },
 
     delete: async (id: string): Promise<void> => {
-        const { error } = await getSupabase()
-            .from('recipes')
-            .delete()
-            .eq('id', id)
-
-        if (error) throw error
+        await db.transaction('rw', [db.recipes, db.recipeIngredients], async () => {
+            await db.recipeIngredients.where('recipe_id').equals(id).delete()
+            await db.recipes.delete(id)
+        })
     },
 
     getProductUsageStats: async (): Promise<Record<string, number>> => {
-        const { data, error } = await getSupabase()
-            .from('recipe_ingredients')
-            .select('product_id')
-
-        if (error) throw error
-
+        const rows = await db.recipeIngredients.toArray()
         const stats: Record<string, number> = {}
-        data?.forEach((row: { product_id: string }) => {
+        rows.forEach((row: any) => {
             const pid = row.product_id
             stats[pid] = (stats[pid] || 0) + 1
         })

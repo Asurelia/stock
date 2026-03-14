@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth, type UserRole } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { db, generateId } from '@/lib/offline/db'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -77,20 +77,14 @@ export function UsersPage() {
     }, [isGerant, navigate])
 
     const loadData = async () => {
-        if (!supabase) return
         setIsLoading(true)
         setError('')
 
         try {
             // Load users
-            const { data: usersData, error: usersError } = await supabase
-                .from('user_profiles')
-                .select('*')
-                .order('display_name')
+            const usersData = await db.userProfiles.orderBy('display_name').toArray()
 
-            if (usersError) throw usersError
-
-            setUsers(usersData?.map(u => ({
+            setUsers(usersData.map(u => ({
                 id: u.id,
                 displayName: u.display_name,
                 role: u.role as UserRole,
@@ -100,22 +94,17 @@ export function UsersPage() {
                 isActive: u.is_active ?? true,
                 lastLogin: u.last_login,
                 createdAt: u.created_at ?? ''
-            })) || [])
+            })))
 
             // Load staff for linking
-            const { data: staffData, error: staffError } = await supabase
-                .from('staff')
-                .select('id, first_name, last_name')
-                .eq('is_active', true)
-                .order('first_name')
+            const staffData = await db.staff.toArray()
+            const activeStaff = staffData.filter(s => s.is_active).sort((a, b) => (a.first_name || '').localeCompare(b.first_name || ''))
 
-            if (staffError) throw staffError
-
-            setStaffList(staffData?.map(s => ({
+            setStaffList(activeStaff.map(s => ({
                 id: s.id,
                 firstName: s.first_name,
                 lastName: s.last_name
-            })) || [])
+            })))
 
         } catch (err) {
             console.error('Error loading data:', err)
@@ -158,8 +147,6 @@ export function UsersPage() {
     }
 
     const handleSave = async () => {
-        if (!supabase) return
-        
         if (!formData.displayName.trim()) {
             setError('Le nom est requis')
             return
@@ -170,12 +157,8 @@ export function UsersPage() {
         }
 
         // Check PIN uniqueness
-        const { data: existingPin } = await supabase
-            .from('user_profiles')
-            .select('id')
-            .eq('pin_code', formData.pinCode)
-            .neq('id', editingUser?.id || '')
-            .single()
+        const pinMatches = await db.userProfiles.where('pin_code').equals(formData.pinCode).toArray()
+        const existingPin = pinMatches.find(p => p.id !== (editingUser?.id || ''))
 
         if (existingPin) {
             setError('Ce code PIN est déjà utilisé')
@@ -197,18 +180,9 @@ export function UsersPage() {
             }
 
             if (editingUser) {
-                const { error } = await supabase
-                    .from('user_profiles')
-                    .update(userData)
-                    .eq('id', editingUser.id)
-
-                if (error) throw error
+                await db.userProfiles.update(editingUser.id, userData)
             } else {
-                const { error } = await supabase
-                    .from('user_profiles')
-                    .insert([userData])
-
-                if (error) throw error
+                await db.userProfiles.add({ id: generateId(), ...userData, created_at: new Date().toISOString() })
             }
 
             setIsDialogOpen(false)
@@ -222,7 +196,7 @@ export function UsersPage() {
     }
 
     const handleDelete = async () => {
-        if (!supabase || !deleteConfirm) return
+        if (!deleteConfirm) return
 
         // Prevent deleting yourself
         if (deleteConfirm.id === user?.id) {
@@ -232,12 +206,7 @@ export function UsersPage() {
         }
 
         try {
-            const { error } = await supabase
-                .from('user_profiles')
-                .delete()
-                .eq('id', deleteConfirm.id)
-
-            if (error) throw error
+            await db.userProfiles.delete(deleteConfirm.id)
 
             setDeleteConfirm(null)
             loadData()
