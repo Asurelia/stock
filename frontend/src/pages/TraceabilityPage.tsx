@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Camera, Calendar, Search, Filter, Image as ImageIcon, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Camera, Calendar, Search, Image as ImageIcon, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -287,7 +287,7 @@ export function TraceabilityPage() {
                 </Card>
             ) : (
                 <div className="space-y-8">
-                    {Object.entries(groupedByDate).map(([date, datePhotos]) => (
+                    {Object.entries(groupedByDate).map(([date, datePhotos]: [string, TraceabilityPhoto[]]) => (
                         <div key={date} className="space-y-3">
                             <h3 className="font-medium text-muted-foreground capitalize">{date}</h3>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">

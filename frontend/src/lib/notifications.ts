@@ -10,7 +10,7 @@
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications, type Token, type PushNotificationSchema, type ActionPerformed } from '@capacitor/push-notifications';
 import { LocalNotifications, type LocalNotificationSchema } from '@capacitor/local-notifications';
-import { getSupabase } from './api/core';
+import { db, generateId } from './offline/db';
 
 // =========================================
 // Types
@@ -106,40 +106,28 @@ function generateDeviceId(): string {
 }
 
 /**
- * Save push token to Supabase
+ * Save push token to local database
  */
 export async function savePushToken(
   token: string,
   userProfileId: string | null = null
 ): Promise<void> {
-  const supabase = getSupabase();
-  if (!supabase) {
-    console.error('Supabase not initialized');
-    return;
-  }
-
   const deviceId = generateDeviceId();
   const tokenPlatform = isNative ? (platform as 'android' | 'web') : 'web';
 
   try {
-    // Upsert the token (update if device exists, insert if new)
-    const { error } = await supabase
-      .from('push_tokens')
-      .upsert(
-        {
-          device_id: deviceId,
-          token: token,
-          platform: tokenPlatform,
-          user_profile_id: userProfileId,
-          is_active: true,
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: 'device_id',
-        }
-      );
-
-    if (error) throw error;
+    const existing = await db.pushTokens.where('device_id').equals(deviceId).first();
+    if (existing) {
+      await db.pushTokens.update(existing.id, {
+        token, platform: tokenPlatform, user_profile_id: userProfileId, is_active: true, updated_at: new Date().toISOString()
+      });
+    } else {
+      await db.pushTokens.add({
+        id: generateId(), device_id: deviceId, token, platform: tokenPlatform,
+        user_profile_id: userProfileId, is_active: true,
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+      });
+    }
     console.log('Push token saved successfully');
   } catch (error) {
     console.error('Failed to save push token:', error);
@@ -147,22 +135,17 @@ export async function savePushToken(
 }
 
 /**
- * Remove push token from Supabase
+ * Remove push token from local database
  */
 export async function removePushToken(): Promise<void> {
-  const supabase = getSupabase();
-  if (!supabase) return;
-
   const deviceId = localStorage.getItem('stockpro_device_id');
   if (!deviceId) return;
 
   try {
-    const { error } = await supabase
-      .from('push_tokens')
-      .update({ is_active: false, updated_at: new Date().toISOString() })
-      .eq('device_id', deviceId);
-
-    if (error) throw error;
+    const existing = await db.pushTokens.where('device_id').equals(deviceId).first();
+    if (existing) {
+      await db.pushTokens.update(existing.id, { is_active: false, updated_at: new Date().toISOString() });
+    }
     console.log('Push token deactivated');
   } catch (error) {
     console.error('Failed to deactivate push token:', error);

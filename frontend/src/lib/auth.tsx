@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { supabase } from './supabase'
+import { db } from './offline/db'
 
 export type UserRole = 'gerant' | 'cuisinier' | 'plongeur'
 
@@ -36,14 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (stored) {
                 const parsedUser = JSON.parse(stored) as AuthUser
                 // Verify user still exists and is active in database
-                const { data, error } = await supabase!
-                    .from('user_profiles')
-                    .select('id, display_name, role, avatar_emoji, staff_id, is_active')
-                    .eq('id', parsedUser.id)
-                    .eq('is_active', true)
-                    .single()
-
-                if (data && !error) {
+                const data = await db.userProfiles.get(parsedUser.id)
+                if (data && data.is_active) {
                     const refreshedUser: AuthUser = {
                         id: data.id,
                         displayName: data.display_name,
@@ -73,25 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [loadUserFromStorage])
 
     const login = async (pinCode: string, userId?: string): Promise<{ success: boolean; error?: string }> => {
-        if (!supabase) {
-            return { success: false, error: 'Connexion à la base de données non disponible' }
-        }
-
         try {
-            let query = supabase
-                .from('user_profiles')
-                .select('id, display_name, role, avatar_emoji, staff_id, is_active')
-                .eq('pin_code', pinCode)
-                .eq('is_active', true)
-            
-            // If userId is provided, verify PIN matches that specific user
+            let results = await db.userProfiles.where('pin_code').equals(pinCode).and(p => p.is_active === true).toArray()
             if (userId) {
-                query = query.eq('id', userId)
+                results = results.filter(r => r.id === userId)
             }
-            
-            const { data, error } = await query.single()
+            const data = results[0]
 
-            if (error || !data) {
+            if (!data) {
                 return { success: false, error: 'Code PIN invalide' }
             }
 
@@ -105,10 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             // Update last login
-            await supabase
-                .from('user_profiles')
-                .update({ last_login: new Date().toISOString() })
-                .eq('id', data.id)
+            await db.userProfiles.update(data.id, { last_login: new Date().toISOString() })
 
             setUser(authUser)
             localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser))

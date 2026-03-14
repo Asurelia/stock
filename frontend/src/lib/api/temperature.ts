@@ -1,4 +1,4 @@
-import { getSupabase } from './core'
+import { db, generateId, nowISO } from './core'
 import { activityLogApi } from './activityLog'
 
 export const temperatureApi = {
@@ -7,24 +7,13 @@ export const temperatureApi = {
     // =========================================
     temperatureEquipment: {
         getAll: async () => {
-            const { data, error } = await getSupabase()
-                .from('temperature_equipment')
-                .select('*')
-                .order('name')
-
-            if (error) throw error
-            return data || []
+            return await db.temperatureEquipment.orderBy('name').toArray()
         },
 
         getById: async (id: string) => {
-            const { data, error } = await getSupabase()
-                .from('temperature_equipment')
-                .select('*')
-                .eq('id', id)
-                .single()
-
-            if (error) throw error
-            return data
+            const row = await db.temperatureEquipment.get(id)
+            if (!row) throw new Error(`Equipment not found: ${id}`)
+            return row
         },
 
         create: async (equipmentData: {
@@ -34,14 +23,20 @@ export const temperatureApi = {
             min_temp?: number
             max_temp?: number
         }) => {
-            const { data, error } = await getSupabase()
-                .from('temperature_equipment')
-                .insert([equipmentData])
-                .select()
-                .single()
-
-            if (error) throw error
-            return data
+            const id = generateId()
+            const record = {
+                id,
+                name: equipmentData.name,
+                type: equipmentData.type,
+                location: equipmentData.location ?? null,
+                min_temp: equipmentData.min_temp ?? null,
+                max_temp: equipmentData.max_temp ?? null,
+                is_active: true,
+                created_at: nowISO(),
+                updated_at: nowISO()
+            }
+            await db.temperatureEquipment.add(record)
+            return record
         },
 
         update: async (id: string, equipmentData: {
@@ -52,21 +47,18 @@ export const temperatureApi = {
             max_temp?: number
             is_active?: boolean
         }) => {
-            const { error } = await getSupabase()
-                .from('temperature_equipment')
-                .update(equipmentData)
-                .eq('id', id)
-
-            if (error) throw error
+            const updateData: Record<string, unknown> = { updated_at: nowISO() }
+            if (equipmentData.name !== undefined) updateData.name = equipmentData.name
+            if (equipmentData.type !== undefined) updateData.type = equipmentData.type
+            if (equipmentData.location !== undefined) updateData.location = equipmentData.location
+            if (equipmentData.min_temp !== undefined) updateData.min_temp = equipmentData.min_temp
+            if (equipmentData.max_temp !== undefined) updateData.max_temp = equipmentData.max_temp
+            if (equipmentData.is_active !== undefined) updateData.is_active = equipmentData.is_active
+            await db.temperatureEquipment.update(id, updateData)
         },
 
         delete: async (id: string) => {
-            const { error } = await getSupabase()
-                .from('temperature_equipment')
-                .delete()
-                .eq('id', id)
-
-            if (error) throw error
+            await db.temperatureEquipment.delete(id)
         }
     },
 
@@ -75,28 +67,22 @@ export const temperatureApi = {
     // =========================================
     temperatureReadings: {
         getByEquipment: async (equipmentId: string, limit = 50) => {
-            const { data, error } = await getSupabase()
-                .from('temperature_readings')
-                .select('*')
-                .eq('equipment_id', equipmentId)
-                .order('recorded_at', { ascending: false })
+            return await db.temperatureReadings
+                .where('equipment_id')
+                .equals(equipmentId)
+                .reverse()
                 .limit(limit)
-
-            if (error) throw error
-            return data || []
+                .toArray()
         },
 
         getLatest: async (equipmentId: string) => {
-            const { data, error } = await getSupabase()
-                .from('temperature_readings')
-                .select('*')
-                .eq('equipment_id', equipmentId)
-                .order('recorded_at', { ascending: false })
+            const rows = await db.temperatureReadings
+                .where('equipment_id')
+                .equals(equipmentId)
+                .reverse()
                 .limit(1)
-                .maybeSingle()
-
-            if (error) throw error
-            return data
+                .toArray()
+            return rows[0] ?? null
         },
 
         create: async (readingData: {
@@ -106,42 +92,51 @@ export const temperatureApi = {
             recorded_by?: string
             notes?: string | null
         }) => {
-            const { data, error } = await getSupabase()
-                .from('temperature_readings')
-                .insert([readingData])
-                .select(`*, temperature_equipment (name)`)
-                .single()
+            const id = generateId()
+            const record = {
+                id,
+                equipment_id: readingData.equipment_id,
+                temperature: readingData.temperature,
+                is_compliant: readingData.is_compliant ?? null,
+                recorded_by: readingData.recorded_by ?? null,
+                notes: readingData.notes ?? null,
+                recorded_at: nowISO(),
+                created_at: nowISO()
+            }
+            await db.temperatureReadings.add(record)
 
-            if (error) throw error
+            const equipment = await db.temperatureEquipment.get(readingData.equipment_id)
 
-            // Log activity
             activityLogApi.log({
                 action: 'temperature_recorded',
                 entityType: 'temperature',
-                entityId: data.id,
+                entityId: id,
                 details: {
                     temperature: readingData.temperature,
-                    equipmentName: (data.temperature_equipment as { name?: string } | null)?.name,
+                    equipmentName: equipment?.name,
                     isCompliant: readingData.is_compliant
                 }
             })
 
-            return data
+            return { ...record, temperature_equipment: equipment ? { name: equipment.name, type: equipment.type } : null }
         },
 
         getByDateRange: async (from: string, to: string) => {
-            const { data, error } = await getSupabase()
-                .from('temperature_readings')
-                .select(`
-                    *,
-                    temperature_equipment (name, type)
-                `)
-                .gte('recorded_at', from)
-                .lte('recorded_at', to)
-                .order('recorded_at', { ascending: false })
+            const rows = await db.temperatureReadings
+                .where('recorded_at')
+                .between(from, to, true, true)
+                .reverse()
+                .toArray()
 
-            if (error) throw error
-            return data || []
+            const equipmentIds = [...new Set(rows.map(r => r.equipment_id).filter(Boolean))]
+            const equipmentRows = await db.temperatureEquipment.bulkGet(equipmentIds)
+            const equipmentMap = new Map<string, any>()
+            equipmentRows.forEach(e => { if (e) equipmentMap.set(e.id, e) })
+
+            return rows.map(r => ({
+                ...r,
+                temperature_equipment: r.equipment_id ? (equipmentMap.get(r.equipment_id) ?? null) : null
+            }))
         }
     }
 }

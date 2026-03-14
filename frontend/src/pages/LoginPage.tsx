@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Lock, Delete, ChevronLeft, Fingerprint, Check } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/offline/db'
 import { useBiometric } from '@/hooks/useBiometric'
 import { Capacitor } from '@capacitor/core'
 
@@ -47,23 +47,18 @@ export function LoginPage() {
     // Load users on mount
     useEffect(() => {
         const loadUsers = async () => {
-            if (!supabase) {
-                setError('Connexion a la base de donnees non disponible')
-                setIsLoadingUsers(false)
-                return
-            }
-
-            const { data, error } = await supabase
-                .from('user_profiles')
-                .select('id, display_name, avatar_emoji, role')
-                .eq('is_active', true)
-                .order('display_name')
-
-            if (error) {
+            try {
+                const data = await db.userProfiles.toArray()
+                const sorted = data.filter(u => u.is_active).sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''))
+                setUsers(sorted.map(u => ({
+                    id: u.id,
+                    display_name: u.display_name,
+                    avatar_emoji: u.avatar_emoji || '👤',
+                    role: u.role
+                })))
+            } catch (error) {
                 setError('Erreur lors du chargement des utilisateurs')
                 console.error(error)
-            } else {
-                setUsers(data || [])
             }
             setIsLoadingUsers(false)
         }

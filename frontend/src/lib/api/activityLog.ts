@@ -1,5 +1,4 @@
-import { getSupabase } from './core'
-import type { Json } from '../database.types'
+import { db, generateId, nowISO } from './core'
 
 export interface ActivityLog {
     id: string
@@ -13,7 +12,7 @@ export interface ActivityLog {
     createdAt: string
 }
 
-export type ActivityAction = 
+export type ActivityAction =
     | 'output_created'
     | 'output_deleted'
     | 'temperature_recorded'
@@ -38,7 +37,7 @@ export type ActivityAction =
     | 'user_login'
     | 'user_logout'
 
-export type EntityType = 
+export type EntityType =
     | 'output'
     | 'temperature'
     | 'delivery'
@@ -58,21 +57,20 @@ export const activityLogApi = {
         entityId?: string
         details?: Record<string, unknown>
     }): Promise<void> => {
-        // Get current user from localStorage
-        const userStr = localStorage.getItem('auth_user')
-        const user = userStr ? JSON.parse(userStr) : null
+        try {
+            const userStr = localStorage.getItem('stockpro_auth_user')
+            const user = userStr ? JSON.parse(userStr) : null
 
-        const { error } = await getSupabase()
-            .from('activity_log')
-            .insert({
+            await db.activityLog.add({
+                id: generateId(),
                 user_profile_id: user?.id || null,
                 action: params.action,
                 entity_type: params.entityType || null,
                 entity_id: params.entityId || null,
-                details: (params.details || null) as Json
+                details: params.details || null,
+                created_at: nowISO()
             })
-
-        if (error) {
+        } catch (error) {
             console.error('Failed to log activity:', error)
         }
     },
@@ -82,32 +80,34 @@ export const activityLogApi = {
         const startOfDay = `${date}T00:00:00.000Z`
         const endOfDay = `${date}T23:59:59.999Z`
 
-        const { data, error } = await getSupabase()
-            .from('activity_log')
-            .select(`
-                *,
-                user_profiles (
-                    display_name,
-                    avatar_emoji
-                )
-            `)
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay)
-            .order('created_at', { ascending: false })
+        const rows = await db.activityLog
+            .where('created_at')
+            .between(startOfDay, endOfDay, true, true)
+            .reverse()
+            .toArray()
 
-        if (error) throw error
+        const profileIds = [...new Set(rows.map(r => r.user_profile_id as string).filter(Boolean))]
+        const profiles = profileIds.length > 0
+            ? await db.userProfiles.where('id').anyOf(profileIds).toArray()
+            : []
+        const profileMap = new Map<string, { display_name: string; avatar_emoji: string }>(
+            profiles.map(p => [p.id as string, { display_name: p.display_name as string, avatar_emoji: p.avatar_emoji as string }])
+        )
 
-        return (data || []).map(log => ({
-            id: log.id,
-            userProfileId: log.user_profile_id,
-            userName: (log.user_profiles as { display_name?: string } | null)?.display_name || 'Système',
-            userEmoji: (log.user_profiles as { avatar_emoji?: string } | null)?.avatar_emoji || '🤖',
-            action: log.action,
-            entityType: log.entity_type,
-            entityId: log.entity_id,
-            details: log.details as Record<string, unknown> | null,
-            createdAt: log.created_at || new Date().toISOString()
-        }))
+        return rows.map(log => {
+            const profile = log.user_profile_id ? profileMap.get(log.user_profile_id as string) : null
+            return {
+                id: log.id as string,
+                userProfileId: log.user_profile_id as string | null,
+                userName: profile?.display_name || 'Système',
+                userEmoji: profile?.avatar_emoji || '🤖',
+                action: log.action as string,
+                entityType: log.entity_type as string | null,
+                entityId: log.entity_id as string | null,
+                details: log.details as Record<string, unknown> | null,
+                createdAt: (log.created_at as string) || nowISO()
+            }
+        })
     },
 
     // Get logs for a date range
@@ -115,32 +115,34 @@ export const activityLogApi = {
         const startDate = `${from}T00:00:00.000Z`
         const endDate = `${to}T23:59:59.999Z`
 
-        const { data, error } = await getSupabase()
-            .from('activity_log')
-            .select(`
-                *,
-                user_profiles (
-                    display_name,
-                    avatar_emoji
-                )
-            `)
-            .gte('created_at', startDate)
-            .lte('created_at', endDate)
-            .order('created_at', { ascending: false })
+        const rows = await db.activityLog
+            .where('created_at')
+            .between(startDate, endDate, true, true)
+            .reverse()
+            .toArray()
 
-        if (error) throw error
+        const profileIds = [...new Set(rows.map(r => r.user_profile_id as string).filter(Boolean))]
+        const profiles = profileIds.length > 0
+            ? await db.userProfiles.where('id').anyOf(profileIds).toArray()
+            : []
+        const profileMap = new Map<string, { display_name: string; avatar_emoji: string }>(
+            profiles.map(p => [p.id as string, { display_name: p.display_name as string, avatar_emoji: p.avatar_emoji as string }])
+        )
 
-        return (data || []).map(log => ({
-            id: log.id,
-            userProfileId: log.user_profile_id,
-            userName: (log.user_profiles as { display_name?: string } | null)?.display_name || 'Système',
-            userEmoji: (log.user_profiles as { avatar_emoji?: string } | null)?.avatar_emoji || '🤖',
-            action: log.action,
-            entityType: log.entity_type,
-            entityId: log.entity_id,
-            details: log.details as Record<string, unknown> | null,
-            createdAt: log.created_at || new Date().toISOString()
-        }))
+        return rows.map(log => {
+            const profile = log.user_profile_id ? profileMap.get(log.user_profile_id as string) : null
+            return {
+                id: log.id as string,
+                userProfileId: log.user_profile_id as string | null,
+                userName: profile?.display_name || 'Système',
+                userEmoji: profile?.avatar_emoji || '🤖',
+                action: log.action as string,
+                entityType: log.entity_type as string | null,
+                entityId: log.entity_id as string | null,
+                details: log.details as Record<string, unknown> | null,
+                createdAt: (log.created_at as string) || nowISO()
+            }
+        })
     }
 }
 
