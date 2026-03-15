@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type Recipe, type Product } from '@/lib/api'
+import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/tabs'
 import {
     Check, X, AlertTriangle, Users, ChefHat, ShoppingCart, Loader2,
-    Clipboard, Printer, Plus, Trash2, TrendingDown, Lightbulb, Euro,
+    Clipboard, Plus, Trash2, TrendingDown, Lightbulb, Euro,
     ArrowRight, Sparkles
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -293,7 +293,8 @@ export function ProductionPage() {
                     await api.outputs.create({
                         productId: req.productId,
                         quantity: req.requiredQuantity,
-                        reason: `Production: ${recipeNames}`
+                        reason: `Production: ${recipeNames}`,
+                        outputDate: new Date().toISOString().split('T')[0]
                     })
                 }
             }

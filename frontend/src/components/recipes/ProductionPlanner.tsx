@@ -72,7 +72,6 @@ export function ProductionPlanner() {
     const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null)
     const [desiredCovers, setDesiredCovers] = useState<number>(10)
     const [isOutputDialogOpen, setIsOutputDialogOpen] = useState(false)
-    const [isShoppingListOpen, setIsShoppingListOpen] = useState(false)
     const [isGenerating, setIsGenerating] = useState(false)
     const [activeTab, setActiveTab] = useState('planner')
 
@@ -266,7 +265,8 @@ export function ProductionPlanner() {
                     await api.outputs.create({
                         productId: req.productId,
                         quantity: req.requiredQuantity,
-                        reason: `Production: ${recipeNames}`
+                        reason: `Production: ${recipeNames}`,
+                        outputDate: new Date().toISOString().split('T')[0],
                     })
                 }
             }

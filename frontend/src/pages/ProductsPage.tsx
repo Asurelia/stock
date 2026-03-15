@@ -6,8 +6,10 @@ import { ProductDialog } from "@/components/products/product-dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ConfirmDialog } from "@/components/common/ConfirmDialog"
-import { PlusCircle, Loader2, ArrowUpDown, MoreHorizontal, Pencil, Trash2, Plus, Minus, Camera, CameraOff } from "lucide-react"
+import { PlusCircle, Loader2, ArrowUpDown, MoreHorizontal, Pencil, Trash2, Plus, Minus, Camera, CameraOff, FileDown, ScanLine, Calendar, TrendingUp } from "lucide-react"
 import { toast } from "sonner"
+import { generateInventoryReport } from '@/lib/pdf/inventory-report'
+import { BarcodeScannerDialog } from '@/components/scanner/BarcodeScannerDialog'
 import type { ColumnDef } from "@tanstack/react-table"
 import {
     DropdownMenu,
@@ -16,6 +18,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { ProductLotsDialog } from '@/components/products/ProductLotsDialog'
+import { PriceHistoryChart } from '@/components/products/PriceHistoryChart'
 
 export function ProductsPage() {
     const queryClient = useQueryClient()
@@ -25,8 +29,11 @@ export function ProductsPage() {
         open: false,
         product: null,
     })
+    const [scannerOpen, setScannerOpen] = useState(false)
+    const [lotsProduct, setLotsProduct] = useState<{id: string, name: string} | null>(null)
+    const [priceProduct, setPriceProduct] = useState<{id: string, name: string} | null>(null)
 
-    const { data: products, isLoading, isError, error } = useQuery({
+    const { data: products, isLoading, isError } = useQuery({
         queryKey: ['products'],
         queryFn: api.products.getAll,
         staleTime: 1000 * 60 * 5, // 5 minutes
@@ -245,6 +252,12 @@ export function ProductsPage() {
                                 <DropdownMenuItem className="text-blue-600" onClick={() => handleEdit(product)}>
                                     <Pencil className="mr-2 h-4 w-4" aria-hidden="true" /> Modifier
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setLotsProduct({id: product.id, name: product.name})}>
+                                    <Calendar className="mr-2 h-4 w-4" aria-hidden="true" /> Lots
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setPriceProduct({id: product.id, name: product.name})}>
+                                    <TrendingUp className="mr-2 h-4 w-4" aria-hidden="true" /> Historique prix
+                                </DropdownMenuItem>
                                 <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(product)}>
                                     <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> Supprimer
                                 </DropdownMenuItem>
@@ -254,7 +267,7 @@ export function ProductsPage() {
                 )
             },
         },
-    ], [handleEdit, handleDeleteClick, handleAdjustStock, usageStats])
+    ], [handleEdit, handleDeleteClick, handleAdjustStock, usageStats, setLotsProduct, setPriceProduct])
 
     if (isLoading) {
         return (
@@ -295,6 +308,15 @@ export function ProductsPage() {
                     </p>
                 </div>
                 <div className="flex items-center space-x-2">
+                    <Button variant="outline" onClick={() => {
+                        const prods = products?.map((p: any) => ({ name: p.name, category: p.category, quantity: p.quantity, unit: p.unit, minStock: p.minStock, price: p.price })) || []
+                        generateInventoryReport(prods)
+                    }}>
+                        <FileDown className="h-4 w-4 mr-2" />Export PDF
+                    </Button>
+                    <Button variant="outline" onClick={() => setScannerOpen(true)}>
+                        <ScanLine className="h-4 w-4 mr-2" />Scanner
+                    </Button>
                     <Button onClick={handleAdd} aria-label="Ajouter un nouveau produit">
                         <PlusCircle className="mr-2 h-4 w-4" aria-hidden="true" />
                         Ajouter un produit
@@ -310,6 +332,8 @@ export function ProductsPage() {
                 product={selectedProduct}
             />
 
+            <BarcodeScannerDialog open={scannerOpen} onClose={() => setScannerOpen(false)} onScan={(code) => { setScannerOpen(false); toast.info(`Code scanné: ${code}`) }} />
+
             {/* Dialog de confirmation de suppression accessible */}
             <ConfirmDialog
                 open={deleteConfirm.open}
@@ -321,6 +345,9 @@ export function ProductsPage() {
                 onConfirm={handleDeleteConfirm}
                 isLoading={deleteMutation.isPending}
             />
+
+            {lotsProduct && <ProductLotsDialog productId={lotsProduct.id} productName={lotsProduct.name} open={!!lotsProduct} onClose={() => setLotsProduct(null)} />}
+            {priceProduct && <PriceHistoryChart productId={priceProduct.id} productName={priceProduct.name} open={!!priceProduct} onClose={() => setPriceProduct(null)} />}
         </div>
     )
 }

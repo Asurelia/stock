@@ -110,7 +110,7 @@ export function OutputsPage() {
             productId: data.productId,
             quantity: data.quantity,
             reason: data.reason,
-            date: new Date().toISOString()
+            outputDate: new Date().toISOString().split('T')[0]
         })
     }
 

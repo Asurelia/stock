@@ -47,8 +47,13 @@ export function useCreateOutput() {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: (data: { productId: string; quantity: number; reason: string; date?: string }) =>
-            api.outputs.create(data),
+        mutationFn: (data: { productId: string; quantity: number; reason: string; date?: string; outputDate?: string }) =>
+            api.outputs.create({
+                productId: data.productId,
+                quantity: data.quantity,
+                reason: data.reason,
+                outputDate: data.outputDate || data.date || new Date().toISOString().split('T')[0],
+            }),
         onSuccess: () => {
             toast.success('Sortie enregistrée')
             // Invalider les sorties ET les produits (stock modifié)

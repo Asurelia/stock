@@ -1,8 +1,11 @@
+import { getThemeConfig, applyThemeConfig } from '@/components/settings/ThemeCustomizer'
+// Apply saved theme on startup
+applyThemeConfig(getThemeConfig())
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/theme';
 import { Layout } from '@/components/layout/Layout';
-import { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { isNative } from '@/hooks/useCapacitor';
@@ -25,7 +28,8 @@ const PlanningPage = lazy(() => import('@/pages/PlanningPage').then(m => ({ defa
 const LoginPage = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const UsersPage = lazy(() => import('@/pages/UsersPage').then(m => ({ default: m.UsersPage })));
 const ActivityLogPage = lazy(() => import('@/pages/ActivityLogPage'));
-const UserManagementPage = lazy(() => import('@/pages/UserManagementPage').then(m => ({ default: m.UserManagementPage })));
+const UserManagementPage = lazy(() => import('@/pages/UserManagementPage').then(m => ({ default: m.UserManagementPage })))
+const AIAssistantPage = lazy(() => import('./pages/AIAssistantPage'));
 
 // Composant de chargement pour les pages lazy
 const PageLoader = () => (
@@ -126,15 +130,49 @@ function AppRoutes() {
         <Route path="/users" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><UsersPage /></Suspense></GerantOnlyRoute>} />
         <Route path="/activity-log" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><ActivityLogPage /></Suspense></GerantOnlyRoute>} />
         <Route path="/user-management" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><UserManagementPage /></Suspense></GerantOnlyRoute>} />
+        <Route path="/ai" element={<ProtectedRoute><Suspense fallback={<PageLoader />}><AIAssistantPage /></Suspense></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );
 }
 
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen bg-background text-foreground p-8">
+          <h1 className="text-2xl font-bold mb-4">Une erreur est survenue</h1>
+          <p className="text-muted-foreground mb-6 text-center max-w-md">
+            {this.state.error?.message || "Erreur inattendue"}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
+          >
+            Recharger l'application
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
-    <ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <OfflineProvider>
           <AuthProvider>
@@ -146,6 +184,7 @@ function App() {
         </OfflineProvider>
       </QueryClientProvider>
     </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

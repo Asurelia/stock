@@ -1,5 +1,4 @@
-import { getSupabase } from './core'
-import type { Json } from '../database.types'
+import { apiClient } from './core'
 
 export interface ActivityLog {
     id: string
@@ -13,7 +12,7 @@ export interface ActivityLog {
     createdAt: string
 }
 
-export type ActivityAction = 
+export type ActivityAction =
     | 'output_created'
     | 'output_deleted'
     | 'temperature_recorded'
@@ -38,7 +37,7 @@ export type ActivityAction =
     | 'user_login'
     | 'user_logout'
 
-export type EntityType = 
+export type EntityType =
     | 'output'
     | 'temperature'
     | 'delivery'
@@ -51,97 +50,15 @@ export type EntityType =
     | 'user'
 
 export const activityLogApi = {
-    // Log an activity
-    log: async (params: {
-        action: ActivityAction
-        entityType?: EntityType
-        entityId?: string
-        details?: Record<string, unknown>
-    }): Promise<void> => {
-        // Get current user from localStorage
-        const userStr = localStorage.getItem('auth_user')
-        const user = userStr ? JSON.parse(userStr) : null
-
-        const { error } = await getSupabase()
-            .from('activity_log')
-            .insert({
-                user_profile_id: user?.id || null,
-                action: params.action,
-                entity_type: params.entityType || null,
-                entity_id: params.entityId || null,
-                details: (params.details || null) as Json
-            })
-
-        if (error) {
-            console.error('Failed to log activity:', error)
+    log: async (params: { action: ActivityAction; entityType?: EntityType; entityId?: string; details?: Record<string, any> }): Promise<void> => {
+        try {
+            await apiClient.post('/activity-log', params)
+        } catch {
+            // fire and forget, like the original
         }
     },
-
-    // Get logs for a specific date
-    getByDate: async (date: string): Promise<ActivityLog[]> => {
-        const startOfDay = `${date}T00:00:00.000Z`
-        const endOfDay = `${date}T23:59:59.999Z`
-
-        const { data, error } = await getSupabase()
-            .from('activity_log')
-            .select(`
-                *,
-                user_profiles (
-                    display_name,
-                    avatar_emoji
-                )
-            `)
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay)
-            .order('created_at', { ascending: false })
-
-        if (error) throw error
-
-        return (data || []).map(log => ({
-            id: log.id,
-            userProfileId: log.user_profile_id,
-            userName: (log.user_profiles as { display_name?: string } | null)?.display_name || 'Système',
-            userEmoji: (log.user_profiles as { avatar_emoji?: string } | null)?.avatar_emoji || '🤖',
-            action: log.action,
-            entityType: log.entity_type,
-            entityId: log.entity_id,
-            details: log.details as Record<string, unknown> | null,
-            createdAt: log.created_at || new Date().toISOString()
-        }))
-    },
-
-    // Get logs for a date range
-    getByDateRange: async (from: string, to: string): Promise<ActivityLog[]> => {
-        const startDate = `${from}T00:00:00.000Z`
-        const endDate = `${to}T23:59:59.999Z`
-
-        const { data, error } = await getSupabase()
-            .from('activity_log')
-            .select(`
-                *,
-                user_profiles (
-                    display_name,
-                    avatar_emoji
-                )
-            `)
-            .gte('created_at', startDate)
-            .lte('created_at', endDate)
-            .order('created_at', { ascending: false })
-
-        if (error) throw error
-
-        return (data || []).map(log => ({
-            id: log.id,
-            userProfileId: log.user_profile_id,
-            userName: (log.user_profiles as { display_name?: string } | null)?.display_name || 'Système',
-            userEmoji: (log.user_profiles as { avatar_emoji?: string } | null)?.avatar_emoji || '🤖',
-            action: log.action,
-            entityType: log.entity_type,
-            entityId: log.entity_id,
-            details: log.details as Record<string, unknown> | null,
-            createdAt: log.created_at || new Date().toISOString()
-        }))
-    }
+    getByDate: (date: string): Promise<any[]> => apiClient.get(`/activity-log?date=${date}`),
+    getByDateRange: (from: string, to: string): Promise<any[]> => apiClient.get(`/activity-log?from=${from}&to=${to}`),
 }
 
 // Action labels in French

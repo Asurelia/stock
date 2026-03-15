@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { Network } from '@capacitor/network';
 import { App } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -76,8 +76,8 @@ export function useHaptics() {
     if (!isNative) return;
 
     await Haptics.notification({
-      type: type === 'success' ? 'SUCCESS' : type === 'warning' ? 'WARNING' : 'ERROR',
-    } as any);
+      type: type === 'success' ? NotificationType.Success : type === 'warning' ? NotificationType.Warning : NotificationType.Error,
+    });
   };
 
   return { vibrate, notification };

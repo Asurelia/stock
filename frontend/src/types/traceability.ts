@@ -1,4 +1,4 @@
-import type { TraceabilityPhoto } from '@/lib/database.types';
+import type { TraceabilityPhoto } from '@/lib/api/traceability';
 
 export type TraceabilityPhotoExtended = TraceabilityPhoto & {
     outputs: {

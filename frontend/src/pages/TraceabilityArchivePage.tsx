@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Archive, Search } from 'lucide-react';
 import { api } from '@/lib/api';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,7 @@ import { TraceabilityStats } from '@/components/traceability/TraceabilityStats';
 import { TraceabilityGrid } from '@/components/traceability/TraceabilityGrid';
 import { PhotoViewerDialog } from '@/components/traceability/PhotoViewerDialog';
 import type { TraceabilityPhotoExtended } from '@/types/traceability';
-import { supabase } from '@/lib/supabase';
+import { traceabilityApi } from '@/lib/api/traceability';
 
 type ViewMode = 'day' | 'month' | 'year';
 
@@ -56,28 +56,18 @@ export function TraceabilityArchivePage() {
     const { data: allPhotoDates } = useQuery({
         queryKey: ['traceability-all-dates'],
         queryFn: async () => {
-            if (!supabase) return { dates: new Set<string>(), months: new Set<string>() };
-
+            try {
             // Get photos from last 12 months
             const oneYearAgo = new Date();
             oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-            const { data, error } = await supabase
-                .from('traceability_photos')
-                .select('captured_at')
-                .gte('captured_at', oneYearAgo.toISOString())
-                .order('captured_at', { ascending: false });
-
-            if (error || !data) {
-                console.error('Error fetching photo dates:', error);
-                return { dates: new Set<string>(), months: new Set<string>() };
-            }
+            const data = await traceabilityApi.traceabilityPhotos.getByDateRange(oneYearAgo.toISOString(), new Date().toISOString());
 
             const dates = new Set<string>();
             const months = new Set<string>();
 
-            data.forEach(photo => {
-                const date = new Date(photo.captured_at);
+            data.forEach((photo: any) => {
+                const date = new Date(photo.capturedAt || photo.captured_at);
                 const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                 const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
                 dates.add(dateStr);
@@ -85,6 +75,10 @@ export function TraceabilityArchivePage() {
             });
 
             return { dates, months };
+            } catch (error) {
+                console.error('Error fetching photo dates:', error);
+                return { dates: new Set<string>(), months: new Set<string>() };
+            }
         },
         staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     });

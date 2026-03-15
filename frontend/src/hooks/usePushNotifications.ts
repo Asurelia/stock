@@ -177,6 +177,7 @@ export function usePushNotifications(): UsePushNotificationsResult {
   }, [navigate]);
 
   // Request permission
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!isSupported) return false;
 

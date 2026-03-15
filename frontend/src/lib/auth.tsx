@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { supabase } from './supabase'
 
 export type UserRole = 'gerant' | 'cuisinier' | 'plongeur'
 
@@ -25,6 +24,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const AUTH_STORAGE_KEY = 'stockpro_auth_user'
+const AUTH_TOKEN_KEY = 'stockpro_auth_token'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null)
@@ -32,36 +32,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const loadUserFromStorage = useCallback(async () => {
         try {
-            const stored = localStorage.getItem(AUTH_STORAGE_KEY)
-            if (stored) {
-                const parsedUser = JSON.parse(stored) as AuthUser
-                // Verify user still exists and is active in database
-                const { data, error } = await supabase!
-                    .from('user_profiles')
-                    .select('id, display_name, role, avatar_emoji, staff_id, is_active')
-                    .eq('id', parsedUser.id)
-                    .eq('is_active', true)
-                    .single()
-
-                if (data && !error) {
-                    const refreshedUser: AuthUser = {
-                        id: data.id,
-                        displayName: data.display_name,
-                        role: data.role as UserRole,
-                        avatarEmoji: data.avatar_emoji || '👤',
-                        staffId: data.staff_id,
-                        isActive: data.is_active ?? true
-                    }
-                    setUser(refreshedUser)
-                    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(refreshedUser))
+            const token = localStorage.getItem(AUTH_TOKEN_KEY)
+            if (token) {
+                const res = await fetch('/api/auth/me', {
+                    headers: { Authorization: `Bearer ${token}` },
+                })
+                if (res.ok) {
+                    const data = await res.json()
+                    setUser(data.user as AuthUser)
+                    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user))
                 } else {
-                    // User no longer valid, clear storage
+                    localStorage.removeItem(AUTH_TOKEN_KEY)
                     localStorage.removeItem(AUTH_STORAGE_KEY)
                     setUser(null)
                 }
             }
         } catch (error) {
             console.error('Error loading user from storage:', error)
+            localStorage.removeItem(AUTH_TOKEN_KEY)
             localStorage.removeItem(AUTH_STORAGE_KEY)
         } finally {
             setIsLoading(false)
@@ -73,46 +61,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [loadUserFromStorage])
 
     const login = async (pinCode: string, userId?: string): Promise<{ success: boolean; error?: string }> => {
-        if (!supabase) {
-            return { success: false, error: 'Connexion à la base de données non disponible' }
-        }
-
         try {
-            let query = supabase
-                .from('user_profiles')
-                .select('id, display_name, role, avatar_emoji, staff_id, is_active')
-                .eq('pin_code', pinCode)
-                .eq('is_active', true)
-            
-            // If userId is provided, verify PIN matches that specific user
-            if (userId) {
-                query = query.eq('id', userId)
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pinCode, userId }),
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                return { success: false, error: data.error || 'Code PIN invalide' }
             }
-            
-            const { data, error } = await query.single()
-
-            if (error || !data) {
-                return { success: false, error: 'Code PIN invalide' }
-            }
-
-            const authUser: AuthUser = {
-                id: data.id,
-                displayName: data.display_name,
-                role: data.role as UserRole,
-                avatarEmoji: data.avatar_emoji || '👤',
-                staffId: data.staff_id,
-                isActive: data.is_active ?? true
-            }
-
-            // Update last login
-            await supabase
-                .from('user_profiles')
-                .update({ last_login: new Date().toISOString() })
-                .eq('id', data.id)
-
-            setUser(authUser)
-            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser))
-
+            localStorage.setItem(AUTH_TOKEN_KEY, data.token)
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user))
+            setUser(data.user as AuthUser)
             return { success: true }
         } catch (error) {
             console.error('Login error:', error)
@@ -120,9 +81,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }
 
-    const logout = () => {
-        setUser(null)
-        localStorage.removeItem(AUTH_STORAGE_KEY)
+    const logout = async () => {
+        try {
+            const token = localStorage.getItem(AUTH_TOKEN_KEY)
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            })
+        } catch {
+            // ignore logout errors
+        } finally {
+            setUser(null)
+            localStorage.removeItem(AUTH_TOKEN_KEY)
+            localStorage.removeItem(AUTH_STORAGE_KEY)
+        }
     }
 
     const refreshUser = async () => {
@@ -148,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
     const context = useContext(AuthContext)
     if (context === undefined) {
@@ -157,6 +130,7 @@ export function useAuth() {
 }
 
 // Helper to check if user has access (gerant has all access, cuisinier and plongeur have same access)
+// eslint-disable-next-line react-refresh/only-export-components
 export function hasAccess(user: AuthUser | null, requiredRole?: UserRole): boolean {
     if (!user) return false
     if (user.role === 'gerant') return true // Gérant has full access

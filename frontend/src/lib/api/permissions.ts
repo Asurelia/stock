@@ -1,7 +1,4 @@
-import { getSupabase } from './core'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getUntypedSupabase = () => getSupabase() as any
+import { apiClient } from './core'
 
 // Available permissions in the app
 export const AVAILABLE_PERMISSIONS = [
@@ -17,7 +14,7 @@ export const AVAILABLE_PERMISSIONS = [
     { key: 'page_traceability', label: 'Traçabilité', category: 'Pages', description: 'Accès à la page de traçabilité' },
     { key: 'page_planning', label: 'Planning', category: 'Pages', description: 'Accès à la page du planning' },
     { key: 'page_analytics', label: 'Analytics', category: 'Pages', description: 'Accès à la page des analytics' },
-    
+
     // Actions
     { key: 'action_create_output', label: 'Créer sortie', category: 'Actions', description: 'Peut créer des sorties de stock' },
     { key: 'action_delete_output', label: 'Supprimer sortie', category: 'Actions', description: 'Peut supprimer des sorties' },
@@ -50,7 +47,7 @@ export interface UserWithPermissions {
 // Get default permissions based on role
 export const getDefaultPermissions = (role: string): Record<string, boolean> => {
     const defaults: Record<string, boolean> = {}
-    
+
     AVAILABLE_PERMISSIONS.forEach(p => {
         if (role === 'gerant') {
             // Gérant has all permissions by default
@@ -70,137 +67,14 @@ export const getDefaultPermissions = (role: string): Record<string, boolean> => 
             ].includes(p.key)
         }
     })
-    
+
     return defaults
 }
 
 export const permissionsApi = {
-    // Get all users with their permissions
-    getAllUsersWithPermissions: async (): Promise<UserWithPermissions[]> => {
-        const supabase = getSupabase()
-        const untypedSupabase = getUntypedSupabase()
-        
-        // Get all users
-        const { data: users, error: usersError } = await supabase
-            .from('user_profiles')
-            .select('id, display_name, role, avatar_emoji, is_active')
-            .order('display_name')
-        
-        if (usersError) throw usersError
-        
-        // Get all permissions (using untyped client for non-generated table)
-        const { data: permissions, error: permError } = await untypedSupabase
-            .from('user_permissions')
-            .select('*')
-        
-        if (permError && permError.code !== 'PGRST116') {
-            // Table might not exist yet, return users with default permissions
-            console.warn('user_permissions table may not exist:', permError)
-        }
-        
-        // Map users with their permissions
-        return (users || []).map(user => {
-            const userPerms = (permissions || []).filter((p: { user_profile_id: string }) => p.user_profile_id === user.id)
-            const defaultPerms = getDefaultPermissions(user.role)
-            
-            // Merge default permissions with stored permissions
-            const mergedPerms: Record<string, boolean> = { ...defaultPerms }
-            userPerms.forEach((p: { permission_key: string; is_enabled: boolean }) => {
-                mergedPerms[p.permission_key] = p.is_enabled
-            })
-            
-            return {
-                id: user.id,
-                displayName: user.display_name,
-                role: user.role,
-                avatarEmoji: user.avatar_emoji || '👤',
-                isActive: user.is_active ?? true,
-                permissions: mergedPerms as Record<PermissionKey, boolean>
-            }
-        })
-    },
-    
-    // Get permissions for a specific user
-    getUserPermissions: async (userId: string): Promise<Record<PermissionKey, boolean>> => {
-        const supabase = getSupabase()
-        const untypedSupabase = getUntypedSupabase()
-        
-        // Get user role for defaults
-        const { data: user, error: userError } = await supabase
-            .from('user_profiles')
-            .select('role')
-            .eq('id', userId)
-            .single()
-        
-        if (userError) throw userError
-        
-        const defaultPerms = getDefaultPermissions(user.role)
-        
-        // Get stored permissions
-        const { data: permissions, error: permError } = await untypedSupabase
-            .from('user_permissions')
-            .select('permission_key, is_enabled')
-            .eq('user_profile_id', userId)
-        
-        if (permError && permError.code !== 'PGRST116') {
-            console.warn('Error fetching permissions:', permError)
-        }
-        
-        // Merge
-        const mergedPerms: Record<string, boolean> = { ...defaultPerms }
-        ;(permissions || []).forEach((p: { permission_key: string; is_enabled: boolean }) => {
-            mergedPerms[p.permission_key] = p.is_enabled
-        })
-        
-        return mergedPerms as Record<PermissionKey, boolean>
-    },
-    
-    // Update a single permission
-    updatePermission: async (userId: string, permissionKey: string, isEnabled: boolean): Promise<void> => {
-        const untypedSupabase = getUntypedSupabase()
-        
-        // Upsert the permission
-        const { error } = await untypedSupabase
-            .from('user_permissions')
-            .upsert({
-                user_profile_id: userId,
-                permission_key: permissionKey,
-                is_enabled: isEnabled
-            }, {
-                onConflict: 'user_profile_id,permission_key'
-            })
-        
-        if (error) throw error
-    },
-    
-    // Update multiple permissions at once
-    updatePermissions: async (userId: string, permissions: Record<string, boolean>): Promise<void> => {
-        const untypedSupabase = getUntypedSupabase()
-        
-        const updates = Object.entries(permissions).map(([key, enabled]) => ({
-            user_profile_id: userId,
-            permission_key: key,
-            is_enabled: enabled
-        }))
-        
-        const { error } = await untypedSupabase
-            .from('user_permissions')
-            .upsert(updates, {
-                onConflict: 'user_profile_id,permission_key'
-            })
-        
-        if (error) throw error
-    },
-    
-    // Update user active status
-    updateUserStatus: async (userId: string, isActive: boolean): Promise<void> => {
-        const supabase = getSupabase()
-        
-        const { error } = await supabase
-            .from('user_profiles')
-            .update({ is_active: isActive })
-            .eq('id', userId)
-        
-        if (error) throw error
-    }
+    getAllUsersWithPermissions: (): Promise<UserWithPermissions[]> => apiClient.get('/permissions/users'),
+    getUserPermissions: (userId: string): Promise<Record<string, boolean>> => apiClient.get<any>(`/permissions/users/${userId}`).then((r: any) => r.permissions),
+    updatePermission: (userId: string, permissionKey: string, isEnabled: boolean): Promise<void> => apiClient.patch(`/permissions/users/${userId}/permission`, { permissionKey, isEnabled }).then(() => {}),
+    updatePermissions: (userId: string, permissions: Record<string, boolean>): Promise<void> => apiClient.put(`/permissions/users/${userId}/permissions`, { permissions }).then(() => {}),
+    updateUserStatus: (userId: string, isActive: boolean): Promise<void> => apiClient.patch(`/permissions/users/${userId}/status`, { isActive }).then(() => {}),
 }

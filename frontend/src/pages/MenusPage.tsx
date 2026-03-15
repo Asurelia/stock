@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { api, type Recipe, type Menu } from "@/lib/api"
+import { api, type Menu } from "@/lib/api"
 import { format, addDays, subDays } from "date-fns"
 import { fr } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
@@ -31,7 +31,6 @@ import {
     PlusCircle,
     Trash2,
     Package,
-    Save,
     UtensilsCrossed
 } from "lucide-react"
 import { toast } from "sonner"
@@ -135,8 +134,8 @@ export function MenusPage() {
         if (!menuName) return
         createMenuMutation.mutate({
             name: menuName,
-            menu_date: currentDate,
-            meal_type: menuMealType,
+            menuDate: currentDate,
+            mealType: menuMealType as any,
             notes: menuNotes || undefined
         })
     }
