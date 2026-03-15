@@ -1,3 +1,4 @@
+import { ThemeCustomizer } from './ThemeCustomizer'
 import { useState, useRef } from 'react'
 import {
     Dialog,
@@ -157,6 +158,9 @@ export function SettingsDialog() {
                             Vider la base de données
                         </Button>
                     </div>
+
+                    {/* Theme */}
+                    <ThemeCustomizer />
                 </div>
             </DialogContent>
         </Dialog>

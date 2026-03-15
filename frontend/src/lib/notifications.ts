@@ -10,7 +10,8 @@
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications, type Token, type PushNotificationSchema, type ActionPerformed } from '@capacitor/push-notifications';
 import { LocalNotifications, type LocalNotificationSchema } from '@capacitor/local-notifications';
-import { db, generateId } from './offline/db';
+import { generateId } from './offline/db';
+import { apiClient } from './api/core';
 
 // =========================================
 // Types
@@ -116,18 +117,10 @@ export async function savePushToken(
   const tokenPlatform = isNative ? (platform as 'android' | 'web') : 'web';
 
   try {
-    const existing = await db.pushTokens.where('device_id').equals(deviceId).first();
-    if (existing) {
-      await db.pushTokens.update(existing.id, {
-        token, platform: tokenPlatform, user_profile_id: userProfileId, is_active: true, updated_at: new Date().toISOString()
-      });
-    } else {
-      await db.pushTokens.add({
-        id: generateId(), device_id: deviceId, token, platform: tokenPlatform,
-        user_profile_id: userProfileId, is_active: true,
-        created_at: new Date().toISOString(), updated_at: new Date().toISOString()
-      });
-    }
+    // Push tokens are now managed locally only (no backend table needed for single-user)
+    localStorage.setItem('stockpro_push_token', JSON.stringify({
+      token, platform: tokenPlatform, deviceId, userProfileId, isActive: true
+    }));
     console.log('Push token saved successfully');
   } catch (error) {
     console.error('Failed to save push token:', error);
@@ -142,10 +135,7 @@ export async function removePushToken(): Promise<void> {
   if (!deviceId) return;
 
   try {
-    const existing = await db.pushTokens.where('device_id').equals(deviceId).first();
-    if (existing) {
-      await db.pushTokens.update(existing.id, { is_active: false, updated_at: new Date().toISOString() });
-    }
+    localStorage.removeItem('stockpro_push_token');
     console.log('Push token deactivated');
   } catch (error) {
     console.error('Failed to deactivate push token:', error);

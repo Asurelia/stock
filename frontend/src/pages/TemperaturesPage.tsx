@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Thermometer, Plus, Minus, Snowflake, ThermometerSun, Pencil, Trash2, History } from 'lucide-react';
+import { Thermometer, Plus, Minus, Snowflake, ThermometerSun, Pencil, Trash2, History, FileDown } from 'lucide-react';
+import { generateHACCPReport } from '@/lib/pdf/haccp-report';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -309,7 +310,7 @@ export function TemperaturesPage() {
     };
 
     const handleAddEquipment = () => {
-        createEquipmentMutation.mutate(equipmentForm);
+        createEquipmentMutation.mutate(equipmentForm as any);
     };
 
     const handleUpdateEquipment = () => {
@@ -376,10 +377,26 @@ export function TemperaturesPage() {
                         Suivi des temperatures des equipements frigorifiques
                     </p>
                 </div>
-                <Button onClick={() => setShowAddEquipment(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Ajouter equipement
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => {
+                        const readings = historyReadings?.map((r: any) => ({
+                            equipmentName: r.equipmentName || r.equipment_name || '',
+                            temperature: r.temperature,
+                            isCompliant: r.isCompliant ?? r.is_compliant ?? true,
+                            recordedBy: r.recordedBy || r.recorded_by || '',
+                            recordedAt: r.recordedAt || r.recorded_at || '',
+                            notes: r.notes || '',
+                        })) || []
+                        generateHACCPReport(readings, { from: new Date(Date.now() - 30*86400000).toISOString().split('T')[0], to: new Date().toISOString().split('T')[0] })
+                    }}>
+                        <FileDown className="h-4 w-4 mr-2" />
+                        Export PDF
+                    </Button>
+                    <Button onClick={() => setShowAddEquipment(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Ajouter equipement
+                    </Button>
+                </div>
             </div>
 
             {/* Equipment Grid */}

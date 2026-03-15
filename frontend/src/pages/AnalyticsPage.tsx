@@ -148,13 +148,14 @@ export function AnalyticsPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {stats?.categoryStats && Object.keys(stats.categoryStats).length > 0 ? (
+                        {stats?.categoryStats && stats.categoryStats.length > 0 ? (
                             <div className="space-y-4">
-                                {Object.entries(stats.categoryStats)
-                                    .sort(([, a], [, b]) => b.value - a.value)
-                                    .map(([category, data]) => {
+                                {[...stats.categoryStats]
+                                    .sort((a, b) => b.totalValue - a.totalValue)
+                                    .map((data) => {
+                                        const category = data.category
                                         const percentage = totalStockValue > 0
-                                            ? (data.value / totalStockValue) * 100
+                                            ? (data.totalValue / totalStockValue) * 100
                                             : 0
                                         const color = categoryColors[category] || 'bg-gray-500'
 
@@ -169,7 +170,7 @@ export function AnalyticsPage() {
                                                         </Badge>
                                                     </div>
                                                     <span className="text-muted-foreground">
-                                                        {formatCurrency(data.value)}
+                                                        {formatCurrency(data.totalValue)}
                                                     </span>
                                                 </div>
                                                 <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -202,20 +203,20 @@ export function AnalyticsPage() {
                         {stats?.topConsumption && stats.topConsumption.length > 0 ? (
                             <div className="space-y-3">
                                 {stats.topConsumption.map((item, index) => {
-                                    const maxQty = stats.topConsumption[0].quantity
-                                    const percentage = maxQty > 0 ? (item.quantity / maxQty) * 100 : 0
+                                    const maxQty = stats.topConsumption[0].totalQuantity
+                                    const percentage = maxQty > 0 ? (item.totalQuantity / maxQty) * 100 : 0
 
                                     return (
-                                        <div key={item.name} className="space-y-1">
+                                        <div key={item.productId} className="space-y-1">
                                             <div className="flex justify-between text-sm">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-muted-foreground w-5">
                                                         #{index + 1}
                                                     </span>
-                                                    <span className="font-medium">{item.name}</span>
+                                                    <span className="font-medium">{item.productName}</span>
                                                 </div>
                                                 <Badge variant="secondary">
-                                                    {item.quantity.toFixed(1)} unités
+                                                    {item.totalQuantity.toFixed(1)} unités
                                                 </Badge>
                                             </div>
                                             <div className="h-2 bg-secondary rounded-full overflow-hidden">

@@ -134,8 +134,8 @@ export function MenusPage() {
         if (!menuName) return
         createMenuMutation.mutate({
             name: menuName,
-            menu_date: currentDate,
-            meal_type: menuMealType,
+            menuDate: currentDate,
+            mealType: menuMealType as any,
             notes: menuNotes || undefined
         })
     }

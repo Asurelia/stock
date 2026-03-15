@@ -265,7 +265,8 @@ export function ProductionPlanner() {
                     await api.outputs.create({
                         productId: req.productId,
                         quantity: req.requiredQuantity,
-                        reason: `Production: ${recipeNames}`
+                        reason: `Production: ${recipeNames}`,
+                        outputDate: new Date().toISOString().split('T')[0],
                     })
                 }
             }

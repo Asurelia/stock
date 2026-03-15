@@ -1,4 +1,4 @@
-import { db, generateId, nowISO } from './core'
+import { apiClient } from './core'
 
 export interface ActivityLog {
     id: string
@@ -50,100 +50,15 @@ export type EntityType =
     | 'user'
 
 export const activityLogApi = {
-    // Log an activity
-    log: async (params: {
-        action: ActivityAction
-        entityType?: EntityType
-        entityId?: string
-        details?: Record<string, unknown>
-    }): Promise<void> => {
+    log: async (params: { action: ActivityAction; entityType?: EntityType; entityId?: string; details?: Record<string, any> }): Promise<void> => {
         try {
-            const userStr = localStorage.getItem('stockpro_auth_user')
-            const user = userStr ? JSON.parse(userStr) : null
-
-            await db.activityLog.add({
-                id: generateId(),
-                user_profile_id: user?.id || null,
-                action: params.action,
-                entity_type: params.entityType || null,
-                entity_id: params.entityId || null,
-                details: params.details || null,
-                created_at: nowISO()
-            })
-        } catch (error) {
-            console.error('Failed to log activity:', error)
+            await apiClient.post('/activity-log', params)
+        } catch {
+            // fire and forget, like the original
         }
     },
-
-    // Get logs for a specific date
-    getByDate: async (date: string): Promise<ActivityLog[]> => {
-        const startOfDay = `${date}T00:00:00.000Z`
-        const endOfDay = `${date}T23:59:59.999Z`
-
-        const rows = await db.activityLog
-            .where('created_at')
-            .between(startOfDay, endOfDay, true, true)
-            .reverse()
-            .toArray()
-
-        const profileIds = [...new Set(rows.map(r => r.user_profile_id as string).filter(Boolean))]
-        const profiles = profileIds.length > 0
-            ? await db.userProfiles.where('id').anyOf(profileIds).toArray()
-            : []
-        const profileMap = new Map<string, { display_name: string; avatar_emoji: string }>(
-            profiles.map(p => [p.id as string, { display_name: p.display_name as string, avatar_emoji: p.avatar_emoji as string }])
-        )
-
-        return rows.map(log => {
-            const profile = log.user_profile_id ? profileMap.get(log.user_profile_id as string) : null
-            return {
-                id: log.id as string,
-                userProfileId: log.user_profile_id as string | null,
-                userName: profile?.display_name || 'Système',
-                userEmoji: profile?.avatar_emoji || '🤖',
-                action: log.action as string,
-                entityType: log.entity_type as string | null,
-                entityId: log.entity_id as string | null,
-                details: log.details as Record<string, unknown> | null,
-                createdAt: (log.created_at as string) || nowISO()
-            }
-        })
-    },
-
-    // Get logs for a date range
-    getByDateRange: async (from: string, to: string): Promise<ActivityLog[]> => {
-        const startDate = `${from}T00:00:00.000Z`
-        const endDate = `${to}T23:59:59.999Z`
-
-        const rows = await db.activityLog
-            .where('created_at')
-            .between(startDate, endDate, true, true)
-            .reverse()
-            .toArray()
-
-        const profileIds = [...new Set(rows.map(r => r.user_profile_id as string).filter(Boolean))]
-        const profiles = profileIds.length > 0
-            ? await db.userProfiles.where('id').anyOf(profileIds).toArray()
-            : []
-        const profileMap = new Map<string, { display_name: string; avatar_emoji: string }>(
-            profiles.map(p => [p.id as string, { display_name: p.display_name as string, avatar_emoji: p.avatar_emoji as string }])
-        )
-
-        return rows.map(log => {
-            const profile = log.user_profile_id ? profileMap.get(log.user_profile_id as string) : null
-            return {
-                id: log.id as string,
-                userProfileId: log.user_profile_id as string | null,
-                userName: profile?.display_name || 'Système',
-                userEmoji: profile?.avatar_emoji || '🤖',
-                action: log.action as string,
-                entityType: log.entity_type as string | null,
-                entityId: log.entity_id as string | null,
-                details: log.details as Record<string, unknown> | null,
-                createdAt: (log.created_at as string) || nowISO()
-            }
-        })
-    }
+    getByDate: (date: string): Promise<any[]> => apiClient.get(`/activity-log?date=${date}`),
+    getByDateRange: (from: string, to: string): Promise<any[]> => apiClient.get(`/activity-log?from=${from}&to=${to}`),
 }
 
 // Action labels in French

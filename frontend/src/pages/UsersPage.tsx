@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth, type UserRole } from '@/lib/auth'
-import { db, generateId } from '@/lib/offline/db'
+import { userProfilesApi, staffApi } from '@/lib/api/staff'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -82,28 +82,26 @@ export function UsersPage() {
 
         try {
             // Load users
-            const usersData = await db.userProfiles.orderBy('display_name').toArray()
-
-            setUsers(usersData.map(u => ({
+            const usersData = await userProfilesApi.getAll()
+            setUsers(usersData.map((u: any) => ({
                 id: u.id,
-                displayName: u.display_name,
+                displayName: u.displayName,
                 role: u.role as UserRole,
-                avatarEmoji: u.avatar_emoji || '👤',
-                pinCode: u.pin_code,
-                staffId: u.staff_id,
-                isActive: u.is_active ?? true,
-                lastLogin: u.last_login,
-                createdAt: u.created_at ?? ''
+                avatarEmoji: u.avatarEmoji || '👤',
+                pinCode: u.pinCode,
+                staffId: u.staffId,
+                isActive: u.isActive ?? true,
+                lastLogin: u.lastLogin,
+                createdAt: u.createdAt ?? ''
             })))
 
             // Load staff for linking
-            const staffData = await db.staff.toArray()
-            const activeStaff = staffData.filter(s => s.is_active).sort((a, b) => (a.first_name || '').localeCompare(b.first_name || ''))
-
-            setStaffList(activeStaff.map(s => ({
+            const allStaff = await staffApi.getAll()
+            const activeStaff = allStaff.filter((s: any) => s.isActive !== false)
+            setStaffList(activeStaff.map((s: any) => ({
                 id: s.id,
-                firstName: s.first_name,
-                lastName: s.last_name
+                firstName: s.firstName,
+                lastName: s.lastName
             })))
 
         } catch (err) {
@@ -156,33 +154,23 @@ export function UsersPage() {
             return
         }
 
-        // Check PIN uniqueness
-        const pinMatches = await db.userProfiles.where('pin_code').equals(formData.pinCode).toArray()
-        const existingPin = pinMatches.find(p => p.id !== (editingUser?.id || ''))
-
-        if (existingPin) {
-            setError('Ce code PIN est déjà utilisé')
-            return
-        }
-
         setIsSaving(true)
         setError('')
 
         try {
             const userData = {
-                display_name: formData.displayName.trim(),
+                displayName: formData.displayName.trim(),
                 role: formData.role,
-                avatar_emoji: formData.avatarEmoji,
-                pin_code: formData.pinCode,
-                staff_id: formData.staffId || null,
-                is_active: formData.isActive,
-                updated_at: new Date().toISOString()
+                avatarEmoji: formData.avatarEmoji,
+                pinCode: formData.pinCode,
+                staffId: formData.staffId || null,
+                isActive: formData.isActive,
             }
 
             if (editingUser) {
-                await db.userProfiles.update(editingUser.id, userData)
+                await userProfilesApi.update(editingUser.id, userData as any)
             } else {
-                await db.userProfiles.add({ id: generateId(), ...userData, created_at: new Date().toISOString() })
+                await userProfilesApi.create(userData)
             }
 
             setIsDialogOpen(false)
@@ -206,7 +194,7 @@ export function UsersPage() {
         }
 
         try {
-            await db.userProfiles.delete(deleteConfirm.id)
+            await userProfilesApi.delete(deleteConfirm.id)
 
             setDeleteConfirm(null)
             loadData()

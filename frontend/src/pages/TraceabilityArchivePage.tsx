@@ -11,7 +11,7 @@ import { TraceabilityStats } from '@/components/traceability/TraceabilityStats';
 import { TraceabilityGrid } from '@/components/traceability/TraceabilityGrid';
 import { PhotoViewerDialog } from '@/components/traceability/PhotoViewerDialog';
 import type { TraceabilityPhotoExtended } from '@/types/traceability';
-import { db } from '@/lib/offline/db';
+import { traceabilityApi } from '@/lib/api/traceability';
 
 type ViewMode = 'day' | 'month' | 'year';
 
@@ -61,13 +61,13 @@ export function TraceabilityArchivePage() {
             const oneYearAgo = new Date();
             oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-            const data = await db.traceabilityPhotos.where('captured_at').above(oneYearAgo.toISOString()).toArray();
+            const data = await traceabilityApi.traceabilityPhotos.getByDateRange(oneYearAgo.toISOString(), new Date().toISOString());
 
             const dates = new Set<string>();
             const months = new Set<string>();
 
-            data.forEach(photo => {
-                const date = new Date(photo.captured_at);
+            data.forEach((photo: any) => {
+                const date = new Date(photo.capturedAt || photo.captured_at);
                 const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                 const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
                 dates.add(dateStr);

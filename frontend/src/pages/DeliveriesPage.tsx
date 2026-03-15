@@ -21,10 +21,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { PlusCircle, Loader2, Trash2, Truck, Package, X, Camera, FileSpreadsheet } from "lucide-react"
+import { PlusCircle, Loader2, Trash2, Truck, Package, X, Camera, FileSpreadsheet, Bot } from "lucide-react"
 import { toast } from "sonner"
 import { DeliveryScanDialog } from "@/components/ocr/DeliveryScanDialog"
 import { CSVImportDialog } from "@/components/deliveries/CSVImportDialog"
+import { AIDeliveryScanner } from "@/components/deliveries/AIDeliveryScanner"
 import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 
 export function DeliveriesPage() {
@@ -32,6 +33,7 @@ export function DeliveriesPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isScanDialogOpen, setIsScanDialogOpen] = useState(false)
     const [isCSVDialogOpen, setIsCSVDialogOpen] = useState(false)
+    const [aiScannerOpen, setAiScannerOpen] = useState(false)
     const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; delivery: Delivery | null }>({
         open: false,
         delivery: null,
@@ -163,6 +165,10 @@ export function DeliveriesPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => setAiScannerOpen(true)}>
+                        <Bot className="mr-2 h-4 w-4" />
+                        Analyse IA
+                    </Button>
                     <Button variant="outline" onClick={() => setIsCSVDialogOpen(true)}>
                         <FileSpreadsheet className="mr-2 h-4 w-4" />
                         Import CSV
@@ -400,6 +406,15 @@ export function DeliveriesPage() {
                 variant="destructive"
                 onConfirm={handleDeleteConfirm}
                 isLoading={deleteMutation.isPending}
+            />
+
+            <AIDeliveryScanner
+                open={aiScannerOpen}
+                onClose={() => setAiScannerOpen(false)}
+                onDeliveryCreated={() => {
+                    queryClient.invalidateQueries({ queryKey: ['deliveries'] })
+                    queryClient.invalidateQueries({ queryKey: ['products'] })
+                }}
             />
         </div>
     )

@@ -325,7 +325,7 @@ export function PlanningPage() {
         if (editingEvent) {
             updateEventMutation.mutate({ id: editingEvent.id, data })
         } else {
-            createEventMutation.mutate(data)
+            createEventMutation.mutate(data as any)
         }
     }
 
@@ -548,7 +548,7 @@ export function PlanningPage() {
                                 hours,
                                 notes,
                                 isValidated: false
-                            }))
+                            } as any))
                             createdCount++
                         } else if (existingEvent.eventType === 'work') {
                             // Si un event travail existe déjà, ON FORCE la mise à jour des horaires pour correspondre au rôle/config actuelle

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Lock, Delete, ChevronLeft, Fingerprint, Check } from 'lucide-react'
-import { db } from '@/lib/offline/db'
+import { userProfilesApi } from '@/lib/api/staff'
 import { useBiometric } from '@/hooks/useBiometric'
 import { Capacitor } from '@capacitor/core'
 
@@ -48,12 +48,12 @@ export function LoginPage() {
     useEffect(() => {
         const loadUsers = async () => {
             try {
-                const data = await db.userProfiles.toArray()
-                const sorted = data.filter(u => u.is_active).sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''))
-                setUsers(sorted.map(u => ({
+                const data = await userProfilesApi.getAll()
+                const sorted = data.filter((u: any) => u.isActive !== false).sort((a: any, b: any) => (a.displayName || '').localeCompare(b.displayName || ''))
+                setUsers(sorted.map((u: any) => ({
                     id: u.id,
-                    display_name: u.display_name,
-                    avatar_emoji: u.avatar_emoji || '👤',
+                    display_name: u.displayName,
+                    avatar_emoji: u.avatarEmoji || '👤',
                     role: u.role
                 })))
             } catch (error) {

@@ -1,15 +1,31 @@
+import { AlertsPanel } from '@/components/alerts/AlertsPanel'
+import { OrderSuggestions } from '@/components/orders/OrderSuggestions'
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api"
+import { apiClient } from "@/lib/api/core"
 import { ACTION_LABELS } from "@/lib/api/activityLog"
 import type { ActivityAction } from "@/lib/api/activityLog"
 import { StatCard } from "@/components/dashboard/StatCard"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Package, ShoppingCart, DollarSign, AlertTriangle, TrendingDown, Clock } from "lucide-react"
+import { Package, ShoppingCart, DollarSign, AlertTriangle, TrendingDown, Clock, Thermometer } from "lucide-react"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
+import {
+    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+    PieChart, Pie, Cell, CartesianGrid
+} from 'recharts'
+
+const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
+
+interface ExpiringLot {
+    id: string
+    productName: string
+    lotNumber: string
+    expiryDate: string
+}
 
 export function Dashboard() {
     const { data: products } = useQuery({
@@ -27,6 +43,19 @@ export function Dashboard() {
         queryFn: () => api.activityLog.getByDate(format(new Date(), 'yyyy-MM-dd'))
     })
 
+    const { data: expiringLots } = useQuery({
+        queryKey: ['product-lots', 'expiring'],
+        queryFn: () => apiClient.get<ExpiringLot[]>('/product-lots/expiring?days=7')
+    })
+
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
+    const { data: todayReadings } = useQuery({
+        queryKey: ['temperature-readings', 'today'],
+        queryFn: () => api.temperatureReadings.getByDateRange(todayStr, todayStr)
+    })
+
+    const nonCompliantReadings = todayReadings?.filter(r => r.is_compliant === false) || []
+
     // Stats
     const totalProducts = products?.length || 0
     const totalValue = products?.reduce((acc, p) => acc + (p.price * p.quantity), 0) || 0
@@ -39,18 +68,23 @@ export function Dashboard() {
         currency: "EUR",
     }).format(totalValue)
 
-    // Category distribution
-    const categoryStats = products?.reduce((acc, p) => {
+    // Category distribution data for charts
+    const categoryMap = products?.reduce((acc, p) => {
         const cat = p.category || 'Autre'
-        acc[cat] = (acc[cat] || 0) + 1
+        if (!acc[cat]) acc[cat] = { count: 0, totalValue: 0 }
+        acc[cat].count += 1
+        acc[cat].totalValue += p.price * p.quantity
         return acc
-    }, {} as Record<string, number>) || {}
+    }, {} as Record<string, { count: number; totalValue: number }>) || {}
 
-    const sortedCategories = Object.entries(categoryStats)
-        .sort(([, a], [, b]) => b - a)
+    const categoryData = Object.entries(categoryMap)
+        .map(([category, stats]) => ({
+            category,
+            count: stats.count,
+            totalValue: stats.totalValue,
+        }))
+        .sort((a, b) => b.totalValue - a.totalValue)
         .slice(0, 8)
-
-    const maxCategoryCount = Math.max(...sortedCategories.map(([, v]) => v), 1)
 
     return (
         <div className="p-4 md:p-8 space-y-6">
@@ -93,9 +127,10 @@ export function Dashboard() {
                 />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {/* Stock Alerts + Expiring Lots */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Stock Alerts */}
-                <Card className="col-span-1 lg:col-span-2 p-6">
+                <Card className="p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="font-semibold flex items-center gap-2">
                             <AlertTriangle className="h-4 w-4 text-orange-500" />
@@ -139,34 +174,125 @@ export function Dashboard() {
                     )}
                 </Card>
 
-                {/* Category Distribution */}
-                <Card className="p-6">
-                    <h3 className="font-semibold mb-4">Répartition par catégorie</h3>
-                    {sortedCategories.length === 0 ? (
-                        <p className="text-sm text-muted-foreground py-4 text-center">Aucun produit</p>
-                    ) : (
-                        <div className="space-y-3">
-                            {sortedCategories.map(([category, count]) => (
-                                <div key={category} className="space-y-1">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="truncate">{category}</span>
-                                        <span className="text-muted-foreground font-medium">{count}</span>
+                {/* Expiring Lots */}
+                {expiringLots && expiringLots.length > 0 ? (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                                DLC/DDM à surveiller
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-0 max-h-[280px] overflow-y-auto">
+                                {expiringLots.map(lot => (
+                                    <div key={lot.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                                        <span className="text-sm">{lot.productName} — Lot {lot.lotNumber}</span>
+                                        <Badge variant="destructive">{lot.expiryDate}</Badge>
                                     </div>
-                                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-primary rounded-full transition-all"
-                                            style={{ width: `${(count / maxCategoryCount) * 100}%` }}
-                                        />
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card className="p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                            <AlertTriangle className="h-4 w-4 text-green-500" />
+                            <h3 className="font-semibold">DLC/DDM</h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                            Aucun produit n'expire dans les 7 prochains jours
+                        </p>
+                    </Card>
+                )}
+            </div>
+
+            {/* Temperature Alerts */}
+            {nonCompliantReadings.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Thermometer className="h-5 w-5 text-red-500" />
+                            Alertes température du jour
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-0 max-h-[200px] overflow-y-auto">
+                            {nonCompliantReadings.map(reading => (
+                                <div key={reading.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium">
+                                            {reading.temperature_equipment?.name || 'Équipement'}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                            ({reading.temperature_equipment?.type || '—'})
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="destructive">{reading.temperature}°C</Badge>
+                                        <span className="text-xs text-muted-foreground">
+                                            {format(new Date(reading.recorded_at), 'HH:mm')}
+                                        </span>
                                     </div>
                                 </div>
                             ))}
                         </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Charts: Bar + Pie side by side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Category Value Bar Chart */}
+                <Card className="p-6">
+                    <h3 className="font-semibold mb-4">Valeur stock par catégorie</h3>
+                    {categoryData.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">Aucun produit</p>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={250}>
+                            <BarChart data={categoryData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="category" fontSize={12} />
+                                <YAxis />
+                                <Tooltip formatter={(v: number) => [`${v.toFixed(2)} \u20ac`, 'Valeur']} />
+                                <Bar dataKey="totalValue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
+                </Card>
+
+                {/* Category Distribution Pie Chart */}
+                <Card className="p-6">
+                    <h3 className="font-semibold mb-4">Répartition par catégorie</h3>
+                    {categoryData.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">Aucun produit</p>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={250}>
+                            <PieChart>
+                                <Pie
+                                    data={categoryData}
+                                    dataKey="count"
+                                    nameKey="category"
+                                    cx="50%"
+                                    cy="50%"
+                                    outerRadius={80}
+                                    label={({ name, percent }: any) =>
+                                        `${name || ''} ${((percent || 0) * 100).toFixed(0)}%`
+                                    }
+                                >
+                                    {categoryData.map((_, i) => (
+                                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
                     )}
                 </Card>
             </div>
 
             {/* Today's Activity */}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="font-semibold flex items-center gap-2">
@@ -223,6 +349,11 @@ export function Dashboard() {
                         </div>
                     )}
                 </Card>
+            </div>
+            {/* Alertes et suggestions */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <AlertsPanel />
+                <OrderSuggestions />
             </div>
         </div>
     )

@@ -1,3 +1,6 @@
+import { getThemeConfig, applyThemeConfig } from '@/components/settings/ThemeCustomizer'
+// Apply saved theme on startup
+applyThemeConfig(getThemeConfig())
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/theme';
@@ -25,7 +28,8 @@ const PlanningPage = lazy(() => import('@/pages/PlanningPage').then(m => ({ defa
 const LoginPage = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const UsersPage = lazy(() => import('@/pages/UsersPage').then(m => ({ default: m.UsersPage })));
 const ActivityLogPage = lazy(() => import('@/pages/ActivityLogPage'));
-const UserManagementPage = lazy(() => import('@/pages/UserManagementPage').then(m => ({ default: m.UserManagementPage })));
+const UserManagementPage = lazy(() => import('@/pages/UserManagementPage').then(m => ({ default: m.UserManagementPage })))
+const AIAssistantPage = lazy(() => import('./pages/AIAssistantPage'));
 
 // Composant de chargement pour les pages lazy
 const PageLoader = () => (
@@ -126,6 +130,7 @@ function AppRoutes() {
         <Route path="/users" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><UsersPage /></Suspense></GerantOnlyRoute>} />
         <Route path="/activity-log" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><ActivityLogPage /></Suspense></GerantOnlyRoute>} />
         <Route path="/user-management" element={<GerantOnlyRoute><Suspense fallback={<PageLoader />}><UserManagementPage /></Suspense></GerantOnlyRoute>} />
+        <Route path="/ai" element={<ProtectedRoute><Suspense fallback={<PageLoader />}><AIAssistantPage /></Suspense></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

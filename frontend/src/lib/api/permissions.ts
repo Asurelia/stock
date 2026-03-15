@@ -1,4 +1,4 @@
-import { db, generateId } from './core'
+import { apiClient } from './core'
 
 // Available permissions in the app
 export const AVAILABLE_PERMISSIONS = [
@@ -72,98 +72,9 @@ export const getDefaultPermissions = (role: string): Record<string, boolean> => 
 }
 
 export const permissionsApi = {
-    // Get all users with their permissions
-    getAllUsersWithPermissions: async (): Promise<UserWithPermissions[]> => {
-        const [users, permissions] = await Promise.all([
-            db.userProfiles.orderBy('display_name').toArray(),
-            db.userPermissions.toArray()
-        ])
-
-        return users.map(user => {
-            const userPerms = permissions.filter(p => p.user_profile_id === user.id)
-            const defaultPerms = getDefaultPermissions(user.role as string)
-
-            const mergedPerms: Record<string, boolean> = { ...defaultPerms }
-            userPerms.forEach(p => {
-                mergedPerms[p.permission_key as string] = p.is_enabled as boolean
-            })
-
-            return {
-                id: user.id as string,
-                displayName: user.display_name as string,
-                role: user.role as string,
-                avatarEmoji: (user.avatar_emoji as string) || '👤',
-                isActive: (user.is_active as boolean) ?? true,
-                permissions: mergedPerms as Record<PermissionKey, boolean>
-            }
-        })
-    },
-
-    // Get permissions for a specific user
-    getUserPermissions: async (userId: string): Promise<Record<PermissionKey, boolean>> => {
-        const [user, permissions] = await Promise.all([
-            db.userProfiles.get(userId),
-            db.userPermissions.where('user_profile_id').equals(userId).toArray()
-        ])
-
-        if (!user) throw new Error(`UserProfile not found: ${userId}`)
-
-        const defaultPerms = getDefaultPermissions(user.role as string)
-
-        const mergedPerms: Record<string, boolean> = { ...defaultPerms }
-        permissions.forEach(p => {
-            mergedPerms[p.permission_key as string] = p.is_enabled as boolean
-        })
-
-        return mergedPerms as Record<PermissionKey, boolean>
-    },
-
-    // Update a single permission
-    updatePermission: async (userId: string, permissionKey: string, isEnabled: boolean): Promise<void> => {
-        const existing = await db.userPermissions
-            .where({ user_profile_id: userId, permission_key: permissionKey })
-            .first()
-
-        if (existing) {
-            await db.userPermissions.update(existing.id as string, { is_enabled: isEnabled })
-        } else {
-            await db.userPermissions.add({
-                id: generateId(),
-                user_profile_id: userId,
-                permission_key: permissionKey,
-                is_enabled: isEnabled
-            })
-        }
-    },
-
-    // Update multiple permissions at once
-    updatePermissions: async (userId: string, permissions: Record<string, boolean>): Promise<void> => {
-        const existing = await db.userPermissions
-            .where('user_profile_id')
-            .equals(userId)
-            .toArray()
-
-        const existingMap = new Map<string, string>(
-            existing.map(p => [p.permission_key as string, p.id as string])
-        )
-
-        for (const [key, enabled] of Object.entries(permissions)) {
-            const existingId = existingMap.get(key)
-            if (existingId) {
-                await db.userPermissions.update(existingId, { is_enabled: enabled })
-            } else {
-                await db.userPermissions.add({
-                    id: generateId(),
-                    user_profile_id: userId,
-                    permission_key: key,
-                    is_enabled: enabled
-                })
-            }
-        }
-    },
-
-    // Update user active status
-    updateUserStatus: async (userId: string, isActive: boolean): Promise<void> => {
-        await db.userProfiles.update(userId, { is_active: isActive })
-    }
+    getAllUsersWithPermissions: (): Promise<UserWithPermissions[]> => apiClient.get('/permissions/users'),
+    getUserPermissions: (userId: string): Promise<Record<string, boolean>> => apiClient.get<any>(`/permissions/users/${userId}`).then((r: any) => r.permissions),
+    updatePermission: (userId: string, permissionKey: string, isEnabled: boolean): Promise<void> => apiClient.patch(`/permissions/users/${userId}/permission`, { permissionKey, isEnabled }).then(() => {}),
+    updatePermissions: (userId: string, permissions: Record<string, boolean>): Promise<void> => apiClient.put(`/permissions/users/${userId}/permissions`, { permissions }).then(() => {}),
+    updateUserStatus: (userId: string, isActive: boolean): Promise<void> => apiClient.patch(`/permissions/users/${userId}/status`, { isActive }).then(() => {}),
 }

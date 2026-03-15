@@ -6,7 +6,8 @@ import { fr } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, Calendar, Clock, FileText, Loader2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar, Clock, FileText, Loader2, FileDown } from "lucide-react"
+import { generateActivityReport } from '@/lib/pdf/activity-report'
 
 export default function ActivityLogPage() {
     const [selectedDate, setSelectedDate] = useState(new Date())
@@ -24,12 +25,12 @@ export default function ActivityLogPage() {
     const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
 
     // Group logs by hour
-    const logsByHour = logs.reduce((acc, log) => {
+    const logsByHour = logs.reduce((acc: Record<string, any[]>, log: any) => {
         const hour = format(new Date(log.createdAt), 'HH:00')
         if (!acc[hour]) acc[hour] = []
         acc[hour].push(log)
         return acc
-    }, {} as Record<string, typeof logs>)
+    }, {} as Record<string, any[]>)
 
     const getActionColor = (action: string): string => {
         if (action.includes('created') || action.includes('login')) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
@@ -66,6 +67,12 @@ export default function ActivityLogPage() {
                         Historique de toutes les actions effectuées
                     </p>
                 </div>
+                <Button variant="outline" size="sm" onClick={() => {
+                    const entries = logs?.map((l: any) => ({ createdAt: l.createdAt, userName: l.userName || '', action: l.action, entityType: l.entityType, details: '' })) || []
+                    generateActivityReport(entries, dateStr)
+                }}>
+                    <FileDown className="h-4 w-4 mr-2" />Export PDF
+                </Button>
             </div>
 
             {/* Date Navigation */}
@@ -157,7 +164,7 @@ export default function ActivityLogPage() {
                         <div className="space-y-6">
                             {Object.entries(logsByHour)
                                 .sort(([a], [b]) => b.localeCompare(a))
-                                .map(([hour, hourLogs]) => (
+                                .map(([hour, hourLogs]: [string, any[]]) => (
                                     <div key={hour}>
                                         <div className="flex items-center gap-2 mb-3">
                                             <Badge variant="outline" className="font-mono">
