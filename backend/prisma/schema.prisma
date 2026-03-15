@@ -1,0 +1,425 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id                        String   @id @default(uuid())
+  name                      String
+  category                  String   @default("")
+  quantity                  Float    @default(0)
+  unit                      String   @default("")
+  min_stock                 Float    @default(0)
+  price                     Float    @default(0)
+  emoji                     String   @default("")
+  barcode                   String   @default("")
+  requires_traceability_photo Boolean @default(false)
+  created_at                String   @default("")
+  updated_at                String   @default("")
+
+  outputs              Output[]
+  deliveries           Delivery[]
+  recipe_ingredients   RecipeIngredient[]
+  recurring_configs    RecurringOutputConfig[]
+  daily_recurring      DailyRecurringOutput[]
+  lots                 ProductLot[]
+  price_history        PriceHistory[]
+  mappings             ProductMapping[]
+
+  @@index([category])
+  @@index([name])
+}
+
+model Output {
+  id          String @id @default(uuid())
+  product_id  String
+  quantity    Float  @default(0)
+  reason      String @default("")
+  output_date String @default("")
+  created_at  String @default("")
+
+  product              Product              @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  traceability_photos  TraceabilityPhoto[]
+  daily_recurring      DailyRecurringOutput[]
+
+  @@index([product_id])
+  @@index([output_date])
+  @@index([reason])
+}
+
+model Supplier {
+  id            String @id @default(uuid())
+  name          String
+  category      String @default("")
+  phone         String @default("")
+  email         String @default("")
+  contact       String @default("")
+  notes         String @default("")
+  logo_url      String @default("")
+  order_days    String @default("[]")
+  delivery_days String @default("[]")
+  created_at    String @default("")
+  updated_at    String @default("")
+
+  deliveries       Delivery[]
+  price_history    PriceHistory[]
+  product_mappings ProductMapping[]
+
+  @@index([name])
+}
+
+model Delivery {
+  id            String  @id @default(uuid())
+  product_id    String
+  supplier_id   String?
+  quantity      Float   @default(0)
+  unit_price    Float   @default(0)
+  total_price   Float   @default(0)
+  delivery_date String  @default("")
+  photo_url     String  @default("")
+  created_at    String  @default("")
+  status        String  @default("brouillon")  // brouillon, en_cours, livre, archive
+
+  product  Product   @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  supplier Supplier? @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
+
+  @@index([product_id])
+  @@index([supplier_id])
+  @@index([delivery_date])
+  @@index([status])
+}
+
+model Recipe {
+  id            String @id @default(uuid())
+  name          String
+  category      String @default("")
+  servings      Int    @default(1)
+  instructions  String @default("")
+  photo_url     String @default("")
+  dietary_tags  String @default("[]")
+  created_at    String @default("")
+  updated_at    String @default("")
+
+  ingredients  RecipeIngredient[]
+  menu_recipes MenuRecipe[]
+
+  @@index([name])
+  @@index([category])
+}
+
+model RecipeIngredient {
+  id         String @id @default(uuid())
+  recipe_id  String
+  product_id String
+  quantity   Float  @default(0)
+  unit       String @default("")
+
+  recipe  Recipe  @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([recipe_id])
+  @@index([product_id])
+}
+
+model Menu {
+  id         String @id @default(uuid())
+  name       String @default("")
+  menu_date  String @default("")
+  meal_type  String @default("")
+  notes      String @default("")
+  created_at String @default("")
+  updated_at String @default("")
+
+  menu_recipes MenuRecipe[]
+
+  @@index([menu_date])
+  @@index([meal_type])
+}
+
+model MenuRecipe {
+  id        String @id @default(uuid())
+  menu_id   String
+  recipe_id String
+  servings  Int    @default(1)
+
+  menu   Menu   @relation(fields: [menu_id], references: [id], onDelete: Cascade)
+  recipe Recipe @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
+
+  @@index([menu_id])
+  @@index([recipe_id])
+}
+
+model TemperatureEquipment {
+  id         String  @id @default(uuid())
+  name       String
+  type       String  @default("")
+  location   String  @default("")
+  min_temp   Float   @default(0)
+  max_temp   Float   @default(10)
+  is_active  Boolean @default(true)
+  created_at String  @default("")
+  updated_at String  @default("")
+
+  readings TemperatureReading[]
+
+  @@index([type])
+  @@index([is_active])
+}
+
+model TemperatureReading {
+  id           String  @id @default(uuid())
+  equipment_id String
+  temperature  Float   @default(0)
+  is_compliant Boolean @default(true)
+  recorded_by  String  @default("")
+  notes        String  @default("")
+  recorded_at  String  @default("")
+  created_at   String  @default("")
+
+  equipment TemperatureEquipment @relation(fields: [equipment_id], references: [id], onDelete: Cascade)
+
+  @@index([equipment_id])
+  @@index([recorded_at])
+}
+
+model TraceabilityPhoto {
+  id           String @id @default(uuid())
+  output_id    String
+  storage_path String @default("")
+  url          String @default("")
+  captured_at  String @default("")
+  notes        String @default("")
+  created_at   String @default("")
+
+  output Output @relation(fields: [output_id], references: [id], onDelete: Cascade)
+
+  @@index([output_id])
+  @@index([captured_at])
+}
+
+model Staff {
+  id              String  @id @default(uuid())
+  first_name      String  @default("")
+  last_name       String  @default("")
+  role            String  @default("")
+  email           String  @default("")
+  phone           String  @default("")
+  color           String  @default("")
+  avatar_url      String  @default("")
+  contract_hours  Float   @default(35)
+  is_active       Boolean @default(true)
+  signature_data  String  @default("")
+  pin_code        String  @default("")
+  staff_group     String  @default("week1")
+  work_days_week1 String  @default("[]")
+  work_days_week2 String  @default("[]")
+  created_at      String  @default("")
+
+  schedule_events ScheduleEvent[]
+  user_profile    UserProfile?
+
+  @@index([last_name])
+  @@index([is_active])
+}
+
+model ScheduleEvent {
+  id           String  @id @default(uuid())
+  staff_id     String
+  event_type   String  @default("")
+  title        String  @default("")
+  start_date   String  @default("")
+  end_date     String  @default("")
+  start_time   String  @default("")
+  end_time     String  @default("")
+  hours        Float   @default(0)
+  notes        String  @default("")
+  is_validated Boolean @default(false)
+  validated_by String  @default("")
+  validated_at String  @default("")
+  created_at   String  @default("")
+
+  staff Staff @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+
+  @@index([staff_id])
+  @@index([start_date])
+  @@index([end_date])
+  @@index([event_type])
+}
+
+model UserProfile {
+  id           String  @id @default(uuid())
+  staff_id     String? @unique
+  display_name String  @default("")
+  role         String  @default("user")
+  avatar_emoji String  @default("")
+  last_login   String  @default("")
+  preferences  String  @default("{}")
+  pin_code     String  @default("")
+  is_active    Boolean @default(true)
+  created_at   String  @default("")
+
+  staff       Staff?           @relation(fields: [staff_id], references: [id], onDelete: SetNull)
+  permissions UserPermission[]
+  activity_logs ActivityLog[]
+  sessions    Session[]
+
+  @@index([display_name])
+  @@index([role])
+  @@index([pin_code])
+  @@index([is_active])
+}
+
+model UserPermission {
+  id              String  @id @default(uuid())
+  user_profile_id String
+  permission_key  String
+  is_enabled      Boolean @default(true)
+
+  user_profile UserProfile @relation(fields: [user_profile_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_profile_id, permission_key])
+  @@index([user_profile_id])
+}
+
+model ActivityLog {
+  id              String  @id @default(uuid())
+  user_profile_id String?
+  action          String  @default("")
+  entity_type     String  @default("")
+  entity_id       String  @default("")
+  details         String  @default("{}")
+  created_at      String  @default("")
+
+  user_profile UserProfile? @relation(fields: [user_profile_id], references: [id], onDelete: SetNull)
+
+  @@index([user_profile_id])
+  @@index([action])
+  @@index([entity_type])
+  @@index([created_at])
+}
+
+model PushToken {
+  id              String @id @default(uuid())
+  device_id       String @default("")
+  user_profile_id String @default("")
+
+  @@index([device_id])
+  @@index([user_profile_id])
+}
+
+model RecurringOutputConfig {
+  id         String  @id @default(uuid())
+  category   String  @default("")
+  product_id String
+  quantity   Float   @default(0)
+  is_active  Boolean @default(true)
+  created_at String  @default("")
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([category])
+  @@index([product_id])
+  @@index([is_active])
+}
+
+model DailyRecurringOutput {
+  id          String  @id @default(uuid())
+  date        String  @default("")
+  category    String  @default("")
+  product_id  String
+  quantity    Float   @default(0)
+  is_executed Boolean @default(false)
+  executed_at String  @default("")
+  output_id   String?
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  output  Output? @relation(fields: [output_id], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([category])
+  @@index([product_id])
+  @@index([is_executed])
+}
+
+model ProductLot {
+  id          String  @id @default(uuid())
+  product_id  String
+  lot_number  String  @default("")
+  quantity    Float   @default(0)
+  expiry_date String  @default("")
+  expiry_type String  @default("DLC")
+  received_at String  @default("")
+  notes       String  @default("")
+  created_at  String  @default("")
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([product_id])
+  @@index([expiry_date])
+}
+
+model Session {
+  id              String @id @default(uuid())
+  token           String @unique
+  user_profile_id String
+  created_at      String @default("")
+  expires_at      String @default("")
+
+  user_profile UserProfile @relation(fields: [user_profile_id], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([user_profile_id])
+}
+
+model PriceHistory {
+  id          String  @id @default(uuid())
+  product_id  String
+  supplier_id String?
+  price       Float   @default(0)
+  unit_price  Float   @default(0)
+  recorded_at String  @default("")
+  delivery_id String?
+  notes       String  @default("")
+
+  product  Product   @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  supplier Supplier? @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
+
+  @@index([product_id])
+  @@index([supplier_id])
+  @@index([recorded_at])
+}
+
+model ProductMapping {
+  id            String  @id @default(uuid())
+  external_name String
+  product_id    String
+  supplier_id   String?
+  confidence    Float   @default(1.0)
+  usage_count   Int     @default(1)
+  created_at    String  @default("")
+  updated_at    String  @default("")
+
+  product  Product   @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  supplier Supplier? @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
+
+  @@unique([external_name, supplier_id])
+  @@index([external_name])
+  @@index([product_id])
+  @@index([supplier_id])
+}
+
+model AIMemory {
+  id         String @id @default(uuid())
+  category   String @default("")
+  key        String @default("")
+  value      String @default("")
+  created_at String @default("")
+  updated_at String @default("")
+
+  @@unique([category, key])
+  @@index([category])
+}
