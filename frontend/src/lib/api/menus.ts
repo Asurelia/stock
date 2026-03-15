@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { db, generateId, nowISO } from './core'
 
 export interface Menu {

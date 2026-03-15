@@ -1,6 +1,6 @@
 import { useState, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { api, type Product, type DeliveryItem } from "@/lib/api"
+import { api, type DeliveryItem } from "@/lib/api"
 import {
     processImage,
     saveCorrection,

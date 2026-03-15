@@ -128,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
     const context = useContext(AuthContext)
     if (context === undefined) {
@@ -137,6 +138,7 @@ export function useAuth() {
 }
 
 // Helper to check if user has access (gerant has all access, cuisinier and plongeur have same access)
+// eslint-disable-next-line react-refresh/only-export-components
 export function hasAccess(user: AuthUser | null, requiredRole?: UserRole): boolean {
     if (!user) return false
     if (user.role === 'gerant') return true // Gérant has full access

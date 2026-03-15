@@ -45,6 +45,7 @@ const CATEGORY_EMOJIS: Record<string, string> = {
     'Surgelés': '🧊',
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function getProductEmoji(product: Product): string {
     // Check custom emoji first
     if (product.emoji) return product.emoji

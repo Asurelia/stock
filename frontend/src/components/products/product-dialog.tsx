@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -55,17 +56,6 @@ const CATEGORIES = [
 ]
 
 const UNITS = ["kg", "g", "L", "cL", "unité", "boite", "bouteille", "paquet"]
-
-const defaultValues: ProductFormValues = {
-    name: "",
-    category: "",
-    quantity: 0,
-    unit: "kg",
-    minStock: 0,
-    price: 0,
-    avgConsumption: 0,
-    requiresTraceabilityPhoto: true,
-}
 
 export function ProductDialog({ open, onOpenChange, product }: ProductDialogProps) {
     const queryClient = useQueryClient()

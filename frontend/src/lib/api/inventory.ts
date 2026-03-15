@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { db, generateId, nowISO } from './core'
 import { activityLogApi } from './activityLog'
 
@@ -226,7 +227,21 @@ export const inventoryApi = {
         },
 
         delete: async (id: string): Promise<void> => {
-            await db.deliveries.delete(id)
+            const delivery = await db.deliveries.get(id)
+            if (delivery) {
+                await db.transaction('rw', [db.deliveries, db.products], async () => {
+                    // Restore product stock
+                    const product = await db.products.get(delivery.product_id)
+                    if (product) {
+                        await db.products.update(delivery.product_id, {
+                            quantity: Math.max(0, (product.quantity || 0) - (delivery.quantity || 0))
+                        })
+                    }
+                    await db.deliveries.delete(id)
+                })
+            } else {
+                await db.deliveries.delete(id)
+            }
 
             activityLogApi.log({
                 action: 'delivery_deleted',

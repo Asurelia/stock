@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import * as React from "react"
@@ -5,8 +6,6 @@ import type {
     ColumnDef,
     ColumnFiltersState,
     SortingState,
-    VisibilityState, // Added
-    GroupingState, // Added
 } from "@tanstack/react-table"
 import {
     flexRender,
@@ -15,8 +14,6 @@ import {
     getPaginationRowModel,
     getSortedRowModel,
     useReactTable,
-    getExpandedRowModel, // Added
-    getGroupedRowModel, // Added
 } from "@tanstack/react-table"
 
 import {

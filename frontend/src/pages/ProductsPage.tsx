@@ -26,7 +26,7 @@ export function ProductsPage() {
         product: null,
     })
 
-    const { data: products, isLoading, isError, error } = useQuery({
+    const { data: products, isLoading, isError } = useQuery({
         queryKey: ['products'],
         queryFn: api.products.getAll,
         staleTime: 1000 * 60 * 5, // 5 minutes

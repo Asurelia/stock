@@ -1,6 +1,30 @@
 import { db, generateId, nowISO } from './core'
 import { activityLogApi } from './activityLog'
 
+export interface TemperatureEquipment {
+    id: string
+    name: string
+    type: 'fridge' | 'freezer' | 'cold_room'
+    location: string | null
+    min_temp: number | null
+    max_temp: number | null
+    is_active: boolean
+    created_at: string
+    updated_at: string
+}
+
+export interface TemperatureReading {
+    id: string
+    equipment_id: string
+    temperature: number
+    is_compliant: boolean | null
+    recorded_by: string | null
+    notes: string | null
+    recorded_at: string
+    created_at: string
+    temperature_equipment?: { name: string; type: string } | null
+}
+
 export const temperatureApi = {
     // =========================================
     // Temperature Equipment
@@ -130,7 +154,7 @@ export const temperatureApi = {
 
             const equipmentIds = [...new Set(rows.map(r => r.equipment_id).filter(Boolean))]
             const equipmentRows = await db.temperatureEquipment.bulkGet(equipmentIds)
-            const equipmentMap = new Map<string, any>()
+            const equipmentMap = new Map<string, TemperatureEquipment>()
             equipmentRows.forEach(e => { if (e) equipmentMap.set(e.id, e) })
 
             return rows.map(r => ({

@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import type { TemperatureEquipment, TemperatureReading } from '@/lib/database.types';
+import type { TemperatureEquipment, TemperatureReading } from '@/lib/api/temperature';
 
 const EQUIPMENT_TYPES = [
     { value: 'fridge', label: 'Refrigerateur', icon: '🧊' },

@@ -1,13 +1,9 @@
 /**
- * React hooks for online/offline status
- * Simplified version - no Supabase sync needed, all data is local
+ * React hooks for online/offline status and database info
+ * All data is stored locally in IndexedDB - no remote sync
  */
 
 import { useState, useEffect } from 'react'
-
-// ============================================
-// Online Status Hook
-// ============================================
 
 export function useOnlineStatus() {
     const [online, setOnline] = useState(navigator.onLine)
@@ -27,10 +23,6 @@ export function useOnlineStatus() {
 
     return online
 }
-
-// ============================================
-// Simplified offline sync hook (no-op, data is always local)
-// ============================================
 
 export interface OfflineSyncState {
     isOnline: boolean

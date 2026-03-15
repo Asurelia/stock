@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { productsApi, type Product } from './products'
-import { db, clearAllCache, generateId } from '../offline/db'
+import { productsApi } from './products'
+import { db, clearAllCache } from '../offline/db'
 
 describe('productsApi', () => {
     beforeEach(async () => {

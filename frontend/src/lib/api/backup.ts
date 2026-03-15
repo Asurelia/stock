@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Database backup and restore utilities
  * Uses dexie-export-import to export/import the entire IndexedDB database

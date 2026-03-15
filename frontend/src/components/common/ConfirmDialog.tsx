@@ -78,6 +78,7 @@ export function ConfirmDialog({
 }
 
 // Hook pour utiliser le ConfirmDialog facilement
+// eslint-disable-next-line react-refresh/only-export-components
 export function useConfirmDialog() {
     const [state, setState] = useState<{
         open: boolean

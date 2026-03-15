@@ -72,7 +72,6 @@ export function ProductionPlanner() {
     const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null)
     const [desiredCovers, setDesiredCovers] = useState<number>(10)
     const [isOutputDialogOpen, setIsOutputDialogOpen] = useState(false)
-    const [isShoppingListOpen, setIsShoppingListOpen] = useState(false)
     const [isGenerating, setIsGenerating] = useState(false)
     const [activeTab, setActiveTab] = useState('planner')
 

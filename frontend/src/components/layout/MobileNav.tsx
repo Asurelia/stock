@@ -7,7 +7,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet';
 import { Package, Truck, Users, ChefHat, ClipboardList, BarChart, Calculator, FileText, UserCog, Shield, LogOut as LogOutIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,7 @@ import { useAuth } from '@/lib/auth';
 import { useNavigate } from 'react-router-dom';
 import { useHaptics } from '@/hooks/useCapacitor';
 import { SyncIndicatorCompact } from '@/components/offline/SyncIndicator';
+import { SettingsDialog } from '@/components/settings/SettingsDialog';
 
 // Quick access items for bottom nav (most used)
 const quickNavItems = [
@@ -161,6 +161,7 @@ export function MobileNav() {
           </div>
 
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card safe-area-bottom">
+            <SettingsDialog />
             {isGerant && (
               <Link
                 to="/users"

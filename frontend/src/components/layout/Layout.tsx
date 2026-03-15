@@ -6,6 +6,7 @@ import { ThemeToggle } from '@/components/theme';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { MobileNav } from './MobileNav';
+import { SettingsDialog } from '@/components/settings/SettingsDialog';
 import { SyncIndicator, OfflineBanner } from '@/components/offline/SyncIndicator';
 import { useOnlineStatus } from '@/hooks/useOfflineSync';
 
@@ -97,6 +98,7 @@ export function Layout() {
               Utilisateurs
             </Link>
           )}
+          <SettingsDialog />
           <div className="flex items-center gap-2 px-3 py-2 text-sm border-t pt-3">
             <span className="text-lg">{user?.avatarEmoji}</span>
             <span className="font-medium truncate flex-1">{user?.displayName}</span>

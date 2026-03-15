@@ -1,5 +1,17 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { db, generateId, nowISO } from './core'
 import { activityLogApi } from './activityLog'
+
+export interface TraceabilityPhoto {
+    id: string
+    output_id: string
+    storage_path: string
+    url: string
+    blob?: File | Blob
+    captured_at: string
+    notes: string | null
+    created_at: string
+}
 
 export const OUTPUT_REASONS = [
     'Service midi',

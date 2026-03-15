@@ -1,6 +1,6 @@
 import { useState, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { api, type Product, type RecipeIngredient, DIETARY_TAGS } from "@/lib/api"
+import { api, type RecipeIngredient, DIETARY_TAGS } from "@/lib/api"
 import {
     processRecipeImage,
     saveCorrection,
@@ -28,11 +28,9 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import {
-    Camera,
     Upload,
     Loader2,
     Check,
-    X,
     Zap,
     RefreshCw,
     ChefHat,

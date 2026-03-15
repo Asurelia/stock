@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { api, type Delivery, type DeliveryItem, type Product } from "@/lib/api"
+import { api, type Delivery, type DeliveryItem } from "@/lib/api"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

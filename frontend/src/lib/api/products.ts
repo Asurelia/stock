@@ -13,6 +13,7 @@ export interface Product {
     requiresTraceabilityPhoto: boolean
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapRow(p: any): Product {
     return {
         id: p.id,

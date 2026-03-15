@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import {
     Dialog,
@@ -42,7 +42,7 @@ import {
 } from '@/components/ui/tabs'
 import {
     ChevronLeft, ChevronRight, Plus, Users, Calendar, Clock,
-    Loader2, Trash2, Pencil, Download, Mail, Check, X, UserPlus, AlertCircle, RefreshCw, Wand2, Settings2
+    Loader2, Trash2, Pencil, Download, Mail, UserPlus, Wand2, Settings2
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -489,7 +489,7 @@ export function PlanningPage() {
             toast.info(`Génération pour ${weekTypeLabel}...`)
 
             let createdCount = 0
-            const newEvents: Promise<any>[] = []
+            const newEvents: Promise<unknown>[] = []
 
             for (const staff of freshStaffList) {
                 // Quels jours ce staff doit-il travailler cette semaine ?
