@@ -30,7 +30,13 @@ export function BackendConnect({ children }: Props) {
     try {
       const res = await fetch(`${API_BASE}/products`, { signal: AbortSignal.timeout(5000) })
       if (res.ok) {
-        setStatus('connected')
+        // Verify it's actually JSON from our backend, not an HTML page from Vercel
+        const contentType = res.headers.get('content-type') || ''
+        if (contentType.includes('application/json')) {
+          setStatus('connected')
+        } else {
+          setStatus('disconnected')
+        }
       } else {
         setStatus('disconnected')
       }
