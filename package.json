@@ -9,7 +9,7 @@
     "start:tunnel": "node backend/start-tunnel.js",
     "dev": "concurrently -n backend,frontend -c blue,green \"pnpm run start:backend\" \"pnpm run dev:frontend\"",
     "dev:frontend": "cd frontend && pnpm run dev",
-    "build": "cd frontend && pnpm run build"
+    "build": "cd frontend && pnpm install && pnpm run build"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
