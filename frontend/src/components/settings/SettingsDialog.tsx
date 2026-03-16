@@ -94,6 +94,31 @@ export function SettingsDialog() {
                 </DialogHeader>
 
                 <div className="space-y-6 py-4">
+                    {/* Backend URL — for remote access via tunnel */}
+                    <div className="space-y-2">
+                        <h4 className="text-sm font-medium">Connexion backend</h4>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                className="flex-1 h-9 px-3 text-sm border rounded-md bg-background"
+                                placeholder="https://xxx.trycloudflare.com/api"
+                                defaultValue={localStorage.getItem('stockpro_api_url') || ''}
+                                onBlur={(e) => {
+                                    const val = e.target.value.trim()
+                                    if (val) {
+                                        localStorage.setItem('stockpro_api_url', val)
+                                    } else {
+                                        localStorage.removeItem('stockpro_api_url')
+                                    }
+                                    window.location.reload()
+                                }}
+                            />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Laissez vide en local. Sur Vercel, collez l'URL du tunnel cloudflared.
+                        </p>
+                    </div>
+
                     {/* Database Info */}
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
                         <HardDrive className="h-5 w-5 text-muted-foreground" />

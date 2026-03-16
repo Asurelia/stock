@@ -1,4 +1,11 @@
-const API_BASE = '/api'
+/* CUSTOMIZATION: Backend API URL
+ * - In dev (localhost): uses Vite proxy → '/api'
+ * - On Vercel: uses VITE_API_URL env var pointing to cloudflared tunnel
+ * - Fallback: tries localStorage 'stockpro_api_url' (set in Settings)
+ */
+const API_BASE = import.meta.env.VITE_API_URL
+  || localStorage.getItem('stockpro_api_url')
+  || '/api'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('stockpro_auth_token')
