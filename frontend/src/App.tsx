@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { isNative } from '@/hooks/useCapacitor';
 import { OfflineProvider } from '@/components/offline';
+import { BackendConnect } from '@/components/layout/BackendConnect';
 import { App as CapApp } from '@capacitor/app';
 
 // Lazy load toutes les pages pour optimiser le bundle initial
@@ -174,14 +175,16 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <OfflineProvider>
-          <AuthProvider>
-            <BrowserRouter>
-              <DeepLinkHandler />
-              <AppRoutes />
-            </BrowserRouter>
-          </AuthProvider>
-        </OfflineProvider>
+        <BackendConnect>
+          <OfflineProvider>
+            <AuthProvider>
+              <BrowserRouter>
+                <DeepLinkHandler />
+                <AppRoutes />
+              </BrowserRouter>
+            </AuthProvider>
+          </OfflineProvider>
+        </BackendConnect>
       </QueryClientProvider>
     </ThemeProvider>
     </ErrorBoundary>

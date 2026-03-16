@@ -1,11 +1,25 @@
 /* CUSTOMIZATION: Backend API URL
  * - In dev (localhost): uses Vite proxy → '/api'
- * - On Vercel: uses VITE_API_URL env var pointing to cloudflared tunnel
- * - Fallback: tries localStorage 'stockpro_api_url' (set in Settings)
+ * - On Vercel: reads from localStorage 'stockpro_api_url'
+ * - The URL is set via the connection screen shown when backend is unreachable
  */
-const API_BASE = import.meta.env.VITE_API_URL
-  || localStorage.getItem('stockpro_api_url')
-  || '/api'
+function getApiBase(): string {
+  // In dev (Vite proxy available), use relative path
+  if (window.location.hostname === 'localhost') return '/api'
+  // On Vercel/production, use stored tunnel URL
+  return localStorage.getItem('stockpro_api_url') || '/api'
+}
+
+export const API_BASE = getApiBase()
+
+export function setApiUrl(url: string) {
+  localStorage.setItem('stockpro_api_url', url)
+  window.location.reload()
+}
+
+export function getApiUrl(): string | null {
+  return localStorage.getItem('stockpro_api_url')
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('stockpro_auth_token')
